@@ -2,8 +2,6 @@ package tasks
 
 import (
 	"time"
-
-	"github.com/RichardKnop/machinery/v1/retry"
 )
 
 type SignatureInterface interface {
@@ -32,15 +30,13 @@ type NotificationSignature struct {
 	*Signature
 	CommonSignature    `bson:",inline"`
 	*TransNotification `bson:",inline"`
-	intervals          retry.TransExponentialBackoff
 }
 
 func NewNotificationSignature(name string, args []Arg, tn *TransNotification) *NotificationSignature {
 	sig, _ := NewSignature(name, args)
 	sig.MsgType = NOTIFICATION
-
+	sig.RetryCount = 9
 	create := time.Now()
-
 	ns := NotificationSignature{
 		Signature: sig,
 		CommonSignature: CommonSignature{
@@ -49,9 +45,7 @@ func NewNotificationSignature(name string, args []Arg, tn *TransNotification) *N
 			State:      StateCreated,
 		},
 		TransNotification: tn,
-		intervals:         retry.NotificationInternals,
 	}
-	ns.RetryCount = ns.intervals.RetryCount()
 	return &ns
 }
 

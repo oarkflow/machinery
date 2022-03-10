@@ -15,6 +15,7 @@ import (
 	"github.com/RichardKnop/machinery/v1/backends/amqp"
 	"github.com/RichardKnop/machinery/v1/brokers/errs"
 	"github.com/RichardKnop/machinery/v1/log"
+	"github.com/RichardKnop/machinery/v1/retry"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/RichardKnop/machinery/v1/tracing"
 )
@@ -52,6 +53,9 @@ func (worker *Worker) Launch() error {
 func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 	cnf := worker.server.GetConfig()
 	broker := worker.server.GetBroker()
+
+	//todo load expontilalBackoff
+	retry.LoadInternals(cnf)
 
 	// Log some useful information about worker configuration
 	log.INFO.Printf("Launching a worker with the following settings:")
@@ -209,14 +213,16 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	// Decrement the retry counter, when it reaches 0, we won't retry again
 	signature.RetryCount--
 
-	// Increase retry timeout
-	// signature.RetryTimeout = retry.FibonacciNext(signature.RetryTimeout)
+	signature.Retries++
 
 	// Increase retry timeout
-	timeout, err := signature.NextRetryTimeout()
-	if err != nil {
-		return fmt.Errorf("Set retryTimeout for task %s returned error: %s", signature.UUID, err)
-	}
+	//signature.RetryTimeout = retry.FibonacciNext(signature.RetryTimeout)
+
+	// Increase retry timeout
+	timeout:= signature.NextRetryTimeout()
+	//if err != nil {
+	//	return fmt.Errorf("Set retryTimeout for task %s returned error: %s", signature.UUID, err)
+	//}
 
 	// Delay task by signature.RetryTimeout seconds
 	eta := time.Now().Add(time.Second * time.Duration(timeout))
@@ -225,7 +231,7 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	log.WARNING.Printf("Task %s failed. Going to retry in %d seconds.", signature.UUID, signature.RetryTimeout)
 
 	// Send the task back to the queue
-	_, err = worker.server.SendTask(signature)
+	_, err := worker.server.SendTask(signature)
 	return err
 }
 

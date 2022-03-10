@@ -1,29 +1,37 @@
 package retry
 
-// [15,15,30,180,1800,3600,5400,7200,14400]
-// [14400,7200,5400,3600,1800,180,30,15,15]
-// var internal = []int{14400, 7200, 5400, 3600, 1800, 180, 30, 15, 15}
+import (
+	"sync"
+
+	"github.com/RichardKnop/machinery/v1/config"
+)
 
 type TransExponentialBackoff []int
 
-var NotificationInternals = TransExponentialBackoff([]int{15, 10, 5})
+var (
+	defaultTransExponentialBackoff = TransExponentialBackoff([]int{15, 15, 30, 180, 1800, 3600, 5400, 7200, 14400})
+)
 
-//func (t *TransExponentialBackoff) TransNotificationBackoff(retryCount int) (int, error) {
-//	if retryCount > len(*t) {
-//		return 0, fmt.Errorf("retryCount invalid")
-//	}
-//	s := []int(*t)
-//
-//	return s[retryCount], nil
-//}
+var NotificationInternals TransExponentialBackoff
 
-func (t *TransExponentialBackoff) RetryCount() int {
-	return len(*t)
+var once sync.Once
+
+func LoadInternals(cnf *config.Config) TransExponentialBackoff {
+	once.Do(func() {
+		if cnf.SignatureConfig != nil && cnf.SignatureConfig.TransNotification != nil {
+			NotificationInternals = cnf.SignatureConfig.TransNotification.Intervals
+		} else {
+			NotificationInternals = defaultTransExponentialBackoff
+		}
+	})
+	return NotificationInternals
 }
 
-func TransNotificationBackoff(retryCount int) (int, error) {
-	//if retryCount > len(NotificationInternals) {
-	//	return 0, fmt.Errorf("retryCount invalid")
-	//}
-	return NotificationInternals[retryCount], nil
+// [15,15,30,180,1800,3600,5400,7200,14400]
+func TransNotificationBackoff(retries int) int {
+	if retries > len(NotificationInternals) {
+		return NotificationInternals[len(NotificationInternals)-1]
+	}
+	retries--
+	return NotificationInternals[retries]
 }

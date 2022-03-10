@@ -160,9 +160,10 @@ func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
 func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
 	decodedResults := b.decodeResults(results)
 	update := bson.M{
-		"state":      tasks.StateSuccess,
-		"results":    decodedResults,
-		"updateTime": time.Now().UTC(),
+		"state":             tasks.StateSuccess,
+		"results":           decodedResults,
+		"updateTime":        time.Now().UTC(),
+		"signature.retries": signature.Retries,
 	}
 	return b.updateState(signature, update)
 }
@@ -192,9 +193,10 @@ func (b *Backend) decodeResults(results []*tasks.TaskResult) []*tasks.TaskResult
 // SetStateFailure updates task state to FAILURE
 func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
 	update := bson.M{
-		"state":      tasks.StateFailure,
-		"error":      err,
-		"updateTime": time.Now().UTC(),
+		"state":             tasks.StateFailure,
+		"error":             err,
+		"updateTime":        time.Now().UTC(),
+		"signature.retries": signature.Retries,
 	}
 	return b.updateState(signature, update)
 }

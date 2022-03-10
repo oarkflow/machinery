@@ -66,8 +66,9 @@ type Config struct {
 	MongoDB                 *MongoDBConfig   `yaml:"mongo"`
 	TLSConfig               *tls.Config
 	// NoUnixSignals - when set disables signal handling in machinery
-	NoUnixSignals bool            `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
-	DynamoDB      *DynamoDBConfig `yaml:"dynamodb"`
+	NoUnixSignals   bool             `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
+	DynamoDB        *DynamoDBConfig  `yaml:"dynamodb"`
+	SignatureConfig *SignatureConfig `yaml:"signature_config" envconfig:"SIGNATURECONFIG"`
 }
 
 // QueueBindingArgs arguments which are used when binding to the exchange
@@ -165,6 +166,14 @@ type MongoDBConfig struct {
 	Database         string `yaml:"database" envconfig:"DATABASE"`
 	NoticeTasksColl  string `yaml:"notice_tasks_coll" envconfig:"NOTICE_TASKS_COLL"`
 	NoticeGroupMetas string `yaml:"notice_group_metas" envconfig:"NOTICE_GROUP_METAS"`
+}
+
+type SignatureConfig struct {
+	TransNotification *TransNotificationConfig `yaml:"trans_notification" envconfig:"TRANS_NOTIFICATION"`
+}
+
+type TransNotificationConfig struct {
+	Intervals []int `yaml:"intervals" envconfig:"INTERVALS"`
 }
 
 // Decode from yaml to map (any field whose type or pointer-to-type implements
