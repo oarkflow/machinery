@@ -39,6 +39,15 @@ func New(cnf *config.Config) (iface.Backend, error) {
 	return backend, nil
 }
 
+func NewMongoBackEnd(cnf *config.Config) (*Backend, error) {
+	backend := &Backend{
+		Backend: common.NewBackend(cnf),
+		once:    sync.Once{},
+	}
+
+	return backend, nil
+}
+
 // InitGroup creates and saves a group meta data object
 func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
 	groupMeta := &tasks.GroupMeta{
@@ -112,28 +121,38 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 // SetStatePending updates task state to PENDING
 func (b *Backend) SetStatePending(signature *tasks.Signature) error {
 	update := bson.M{
-		"state":      tasks.StatePending,
-		"task_name":  signature.Name,
-		"created_at": time.Now().UTC(),
+		"state": tasks.StatePending,
+		// "task_name":  signature.Name,
+		// "created_at": time.Now().UTC(),
+		"updateTime": time.Now().UTC(),
 	}
 	return b.updateState(signature, update)
 }
 
 // SetStateReceived updates task state to RECEIVED
 func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
-	update := bson.M{"state": tasks.StateReceived}
+	update := bson.M{
+		"state":      tasks.StateReceived,
+		"updateTime": time.Now().UTC(),
+	}
 	return b.updateState(signature, update)
 }
 
 // SetStateStarted updates task state to STARTED
 func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
-	update := bson.M{"state": tasks.StateStarted}
+	update := bson.M{
+		"state":      tasks.StateStarted,
+		"updateTime": time.Now().UTC(),
+	}
 	return b.updateState(signature, update)
 }
 
 // SetStateRetry updates task state to RETRY
 func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
-	update := bson.M{"state": tasks.StateRetry}
+	update := bson.M{
+		"state":      tasks.StateRetry,
+		"updateTime": time.Now().UTC(),
+	}
 	return b.updateState(signature, update)
 }
 
@@ -141,8 +160,9 @@ func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
 func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
 	decodedResults := b.decodeResults(results)
 	update := bson.M{
-		"state":   tasks.StateSuccess,
-		"results": decodedResults,
+		"state":      tasks.StateSuccess,
+		"results":    decodedResults,
+		"updateTime": time.Now().UTC(),
 	}
 	return b.updateState(signature, update)
 }
@@ -171,7 +191,11 @@ func (b *Backend) decodeResults(results []*tasks.TaskResult) []*tasks.TaskResult
 
 // SetStateFailure updates task state to FAILURE
 func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
-	update := bson.M{"state": tasks.StateFailure, "error": err}
+	update := bson.M{
+		"state":      tasks.StateFailure,
+		"error":      err,
+		"updateTime": time.Now().UTC(),
+	}
 	return b.updateState(signature, update)
 }
 
@@ -259,7 +283,7 @@ func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks.TaskState, error) {
 // updateState saves current task state
 func (b *Backend) updateState(signature *tasks.Signature, update bson.M) error {
 	update = bson.M{"$set": update}
-	_, err := b.tasksCollection().UpdateOne(context.Background(), bson.M{"_id": signature.UUID}, update, options.Update().SetUpsert(true))
+	_, err := b.tasksCollection().UpdateOne(context.Background(), bson.M{"signature.uuid": signature.UUID}, update, options.Update().SetUpsert(true))
 	return err
 }
 
@@ -294,13 +318,23 @@ func (b *Backend) connect() error {
 		database = b.GetConfig().MongoDB.Database
 	}
 
-	b.tc = b.client.Database(database).Collection("tasks")
-	b.gmc = b.client.Database(database).Collection("group_metas")
-
-	err = b.createMongoIndexes(database)
-	if err != nil {
-		return err
+	taskColl := "tasks"
+	if b.GetConfig().MongoDB != nil {
+		taskColl = b.GetConfig().MongoDB.NoticeTasksColl
 	}
+
+	groupMetaColl := "group_metas"
+	if b.GetConfig().MongoDB != nil {
+		groupMetaColl = b.GetConfig().MongoDB.NoticeGroupMetas
+	}
+
+	b.tc = b.client.Database(database).Collection(taskColl)
+	b.gmc = b.client.Database(database).Collection(groupMetaColl)
+
+	//err = b.createMongoIndexes(database)
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -354,5 +388,14 @@ func (b *Backend) createMongoIndexes(database string) error {
 		return err
 	}
 
+	return err
+}
+
+func (b *Backend) SaveStatePending(signature tasks.SignatureInterface) error {
+	common := signature.GetCommon()
+	common.State = tasks.StatePending
+	time := time.Now()
+	common.CreateTime, common.UpdateTime = time, time
+	_, err := b.tasksCollection().InsertOne(context.Background(), signature)
 	return err
 }
