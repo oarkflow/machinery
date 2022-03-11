@@ -82,12 +82,14 @@ type Signature struct {
 	// When this is true a task with no handler will be ignored and not placed back in the queue
 	IgnoreWhenTaskNotRegistered bool    `bson:"ignoreWhenTaskNotRegistered,omitempty"`
 	MsgType                     MsgType `bson:"msgType,omitempty"`
+	// retry times when failure or success
+	Retries int `bson:"retries,omitempty"`
 }
 
-func (s *Signature) NextRetryTimeout() (retryTimeout int, err error) {
+func (s *Signature) NextRetryTimeout() (retryTimeout int) {
 	switch s.MsgType {
 	case NOTIFICATION:
-		retryTimeout, err = retry.TransNotificationBackoff(s.RetryCount)
+		retryTimeout = retry.TransNotificationBackoff(s.Retries)
 		s.RetryTimeout = retryTimeout
 	case PUSH:
 		log.INFO.Print("i am push")
