@@ -2,11 +2,13 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
-	"github.com/RichardKnop/machinery/v1/log"
 	"gopkg.in/yaml.v2"
+
+	"github.com/RichardKnop/machinery/v1/log"
 )
 
 // NewFromYaml creates a config object from YAML file
@@ -43,20 +45,18 @@ func NewFromYaml(cnfPath string, keepReloading bool) (*Config, error) {
 // ReadFromFile reads data from a file
 func ReadFromFile(cnfPath string) ([]byte, error) {
 	file, err := os.Open(cnfPath)
-
+	defer file.Close()
 	// Config file not found
 	if err != nil {
 		return nil, fmt.Errorf("Open file error: %s", err)
 	}
 
-	// Config file found, let's try to read it
-	data := make([]byte, 1000)
-	count, err := file.Read(data)
+	all, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("Read from file error: %s", err)
 	}
 
-	return data[:count], nil
+	return all, nil
 }
 
 func fromFile(cnfPath string) (*Config, error) {
