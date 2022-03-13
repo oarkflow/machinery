@@ -401,3 +401,14 @@ func (b *Backend) SaveStatePending(signature tasks.SignatureInterface) error {
 	_, err := b.tasksCollection().InsertOne(context.Background(), signature)
 	return err
 }
+
+func (b *Backend) GetTaskByEvoTransID(evoTransID string) (*tasks.NotificationSignature, error) {
+	res := new(tasks.NotificationSignature)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"evoTransID": evoTransID,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}

@@ -4,6 +4,10 @@ import (
 	"time"
 )
 
+const (
+	QUE_TRANS_NOTIFICATION = "task_trans_notification"
+)
+
 type SignatureInterface interface {
 	GetSig() *Signature
 	GetCommon() *CommonSignature
@@ -35,7 +39,8 @@ type NotificationSignature struct {
 func NewNotificationSignature(name string, args []Arg, tn *TransNotification) *NotificationSignature {
 	sig, _ := NewSignature(name, args)
 	sig.MsgType = NOTIFICATION
-	sig.RetryCount = 9
+	sig.RetryCount = 3
+	sig.RoutingKey = QUE_TRANS_NOTIFICATION
 	create := time.Now()
 	ns := NotificationSignature{
 		Signature: sig,
