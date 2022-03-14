@@ -8,14 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
+
 	"github.com/RichardKnop/machinery/v1/brokers/errs"
 	"github.com/RichardKnop/machinery/v1/brokers/iface"
 	"github.com/RichardKnop/machinery/v1/common"
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/log"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
 )
 
 type AMQPConnection struct {
@@ -56,13 +57,13 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 		b.GetConfig().Broker,
 		b.GetConfig().MultipleBrokerSeparator,
 		b.GetConfig().TLSConfig,
-		b.GetConfig().AMQP.Exchange,     // exchange name
-		b.GetConfig().AMQP.ExchangeType, // exchange type
-		queueName,                       // queue name
-		true,                            // queue durable
-		false,                           // queue delete when unused
-		b.GetConfig().AMQP.BindingKey,   // queue binding key
-		nil,                             // exchange declare args
+		b.GetConfig().AMQP.Exchange,                     // exchange name
+		b.GetConfig().AMQP.ExchangeType,                 // exchange type
+		queueName,                                       // queue name
+		true,                                            // queue durable
+		false,                                           // queue delete when unused
+		b.GetConfig().AMQP.BindingKey,                   // queue binding key
+		nil,                                             // exchange declare args
 		amqp.Table(b.GetConfig().AMQP.QueueDeclareArgs), // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args
 	)
@@ -212,8 +213,8 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 
 	connection, err := b.GetOrOpenConnection(
 		queue,
-		bindingKey, // queue binding key
-		nil,        // exchange declare args
+		bindingKey,                                      // queue binding key
+		nil,                                             // exchange declare args
 		amqp.Table(b.GetConfig().AMQP.QueueDeclareArgs), // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args
 	)
@@ -376,14 +377,14 @@ func (b *Broker) delay(signature *tasks.Signature, delayMs int64) error {
 		b.GetConfig().Broker,
 		b.GetConfig().MultipleBrokerSeparator,
 		b.GetConfig().TLSConfig,
-		b.GetConfig().AMQP.Exchange,     // exchange name
-		b.GetConfig().AMQP.ExchangeType, // exchange type
-		queueName,                       // queue name
-		true,                            // queue durable
-		b.GetConfig().AMQP.AutoDelete,   // queue delete when unused
-		queueName,                       // queue binding key
-		nil,                             // exchange declare args
-		declareQueueArgs,                // queue declare args
+		b.GetConfig().AMQP.Exchange,                     // exchange name
+		b.GetConfig().AMQP.ExchangeType,                 // exchange type
+		queueName,                                       // queue name
+		true,                                            // queue durable
+		b.GetConfig().AMQP.AutoDelete,                   // queue delete when unused
+		queueName,                                       // queue binding key
+		nil,                                             // exchange declare args
+		declareQueueArgs,                                // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args
 	)
 	if err != nil {
@@ -435,8 +436,9 @@ func (b *Broker) AdjustRoutingKey(s *tasks.Signature) {
 
 // Helper type for GetPendingTasks to accumulate signatures
 type sigDumper struct {
-	customQueue string
-	Signatures  []*tasks.Signature
+	customQueue    string
+	customDelayQue string
+	Signatures     []*tasks.Signature
 }
 
 func (s *sigDumper) Process(sig *tasks.Signature) error {
@@ -446,6 +448,10 @@ func (s *sigDumper) Process(sig *tasks.Signature) error {
 
 func (s *sigDumper) CustomQueue() string {
 	return s.customQueue
+}
+
+func (s *sigDumper) CustomDelayQueue() string {
+	return s.customDelayQue
 }
 
 func (_ *sigDumper) PreConsumeHandler() bool {
@@ -460,8 +466,8 @@ func (b *Broker) GetPendingTasks(queue string) ([]*tasks.Signature, error) {
 	bindingKey := b.GetConfig().AMQP.BindingKey // queue binding key
 	conn, err := b.GetOrOpenConnection(
 		queue,
-		bindingKey, // queue binding key
-		nil,        // exchange declare args
+		bindingKey,                                      // queue binding key
+		nil,                                             // exchange declare args
 		amqp.Table(b.GetConfig().AMQP.QueueDeclareArgs), // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args
 	)

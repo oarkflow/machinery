@@ -5,7 +5,8 @@ import (
 )
 
 const (
-	QUE_TRANS_NOTIFICATION = "task_trans_notification"
+	QUE_TRANS_NOTIFICATION       = "task_trans_notification"
+	DELAY_QUE_TRANS_NOTIFICATION = "delay_task_trans_notification"
 )
 
 type SignatureInterface interface {

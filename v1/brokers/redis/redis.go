@@ -143,7 +143,7 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 			case <-b.GetStopChan():
 				return
 			default:
-				task, err := b.nextDelayedTask(b.redisDelayedTasksKey)
+				task, err := b.nextDelayedTask(getDelayQue(b, taskProcessor))
 				if err != nil {
 					continue
 				}
@@ -478,6 +478,14 @@ func getQueue(config *config.Config, taskProcessor iface.TaskProcessor) string {
 		return config.DefaultQueue
 	}
 	return customQueue
+}
+
+func getDelayQue(b *Broker, taskProcessor iface.TaskProcessor) string {
+	delayQue := taskProcessor.CustomDelayQueue()
+	if delayQue == "" {
+		return b.redisDelayedTasksKey
+	}
+	return delayQue
 }
 
 func (b *Broker) requeueMessage(delivery []byte, taskProcessor iface.TaskProcessor) {
