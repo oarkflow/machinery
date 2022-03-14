@@ -26,6 +26,7 @@ type Worker struct {
 	ConsumerTag       string
 	Concurrency       int
 	Queue             string
+	DelayQue          string
 	errorHandler      func(err error)
 	preTaskHandler    func(*tasks.Signature)
 	postTaskHandler   func(*tasks.Signature)
@@ -127,6 +128,10 @@ func (worker *Worker) CustomQueue() string {
 	return worker.Queue
 }
 
+func (worker *Worker) CustomDelayQueue() string {
+	return worker.DelayQue
+}
+
 // Quit tears down the running worker process
 func (worker *Worker) Quit() {
 	worker.server.GetBroker().StopConsuming()
@@ -219,7 +224,7 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	//signature.RetryTimeout = retry.FibonacciNext(signature.RetryTimeout)
 
 	// Increase retry timeout
-	timeout:= signature.NextRetryTimeout()
+	timeout := signature.NextRetryTimeout()
 	//if err != nil {
 	//	return fmt.Errorf("Set retryTimeout for task %s returned error: %s", signature.UUID, err)
 	//}

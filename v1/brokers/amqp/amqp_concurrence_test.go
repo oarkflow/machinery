@@ -2,12 +2,14 @@ package amqp
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
+	"github.com/streadway/amqp"
+
 	"github.com/RichardKnop/machinery/v1/brokers/iface"
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"github.com/streadway/amqp"
-	"testing"
-	"time"
 )
 
 type doNothingProcessor struct{}
@@ -22,6 +24,10 @@ func (_ doNothingProcessor) CustomQueue() string {
 
 func (_ doNothingProcessor) PreConsumeHandler() bool {
 	return true
+}
+
+func (_ doNothingProcessor) CustomDelayQueue() string {
+	return ""
 }
 
 func TestConsume(t *testing.T) {

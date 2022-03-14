@@ -25,5 +25,6 @@ type Broker interface {
 type TaskProcessor interface {
 	Process(signature *tasks.Signature) error
 	CustomQueue() string
+	CustomDelayQueue() string
 	PreConsumeHandler() bool
 }
