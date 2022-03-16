@@ -22,7 +22,9 @@ type CommonSignature struct {
 }
 
 type TransNotification struct {
-	EvoTransID string `bson:"evoTransID,omitempty"`
+	InsCode      string `bson:"insCode,omitempty"`
+	IntStoreCode string `bson:"intStoreCode,omitempty"`
+	EvoTransID   string `bson:"evoTransID,omitempty"`
 	// MsgTye      int    `bson:"msgTye,omitempty"`      // 0-异步通知 1-Push通知 2-Email通知 3-SMS通知
 	FromChanMsg string `bson:"fromChanMsg,omitempty"` // 渠道异步消息报文（内部字段）
 	ToMerMsg    string `bson:"toMerMsg,omitempty"`    // 对下异步通知内容（内部字段）
