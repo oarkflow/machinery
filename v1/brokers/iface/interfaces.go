@@ -27,4 +27,6 @@ type TaskProcessor interface {
 	CustomQueue() string
 	CustomDelayQueue() string
 	PreConsumeHandler() bool
+	Launch() error
+	Quit()
 }

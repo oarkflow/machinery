@@ -30,6 +30,14 @@ func (_ doNothingProcessor) CustomDelayQueue() string {
 	return ""
 }
 
+func (_ doNothingProcessor) Launch() error {
+	return nil
+}
+
+func (_ doNothingProcessor) Quit() {
+	return
+}
+
 func TestConsume(t *testing.T) {
 	var (
 		iBroker    iface.Broker
