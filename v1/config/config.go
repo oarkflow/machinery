@@ -69,6 +69,11 @@ type Config struct {
 	NoUnixSignals   bool             `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
 	DynamoDB        *DynamoDBConfig  `yaml:"dynamodb"`
 	SignatureConfig *SignatureConfig `yaml:"signature_config" envconfig:"SIGNATURECONFIG"`
+	WorkerConfig    *WorkerConfig    `yaml:"worker" envconfig:"WORKER"`
+}
+
+type WorkerConfig struct {
+	Concurrency int `yaml:"concurrency"`
 }
 
 // QueueBindingArgs arguments which are used when binding to the exchange

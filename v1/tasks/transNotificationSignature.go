@@ -42,7 +42,7 @@ type NotificationSignature struct {
 func NewNotificationSignature(name string, args []Arg, tn *TransNotification) *NotificationSignature {
 	sig, _ := NewSignature(name, args)
 	sig.MsgType = NOTIFICATION
-	sig.RetryCount = 3
+	sig.RetryCount = 9
 	sig.RoutingKey = QUE_TRANS_NOTIFICATION
 	create := time.Now()
 	ns := NotificationSignature{
