@@ -91,33 +91,33 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 			}
 		}
 	}()
-	//if !cnf.NoUnixSignals {
-	//	sig := make(chan os.Signal, 1)
-	//	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	//	var signalsReceived uint
-	//
-	//	// Goroutine Handle SIGINT and SIGTERM signals
-	//	go func() {
-	//		for s := range sig {
-	//			log.WARNING.Printf("Signal received: %v", s)
-	//			signalsReceived++
-	//
-	//			if signalsReceived < 2 {
-	//				// After first Ctrl+C start quitting the worker gracefully
-	//				log.WARNING.Print("Waiting for running tasks to finish before shutting down")
-	//				signalWG.Add(1)
-	//				go func() {
-	//					worker.Quit()
-	//					errorsChan <- ErrWorkerQuitGracefully
-	//					signalWG.Done()
-	//				}()
-	//			} else {
-	//				// Abort the program when user hits Ctrl+C second time in a row
-	//				errorsChan <- ErrWorkerQuitAbruptly
-	//			}
-	//		}
-	//	}()
-	//}
+	/*if !cnf.NoUnixSignals {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		var signalsReceived uint
+
+		// Goroutine Handle SIGINT and SIGTERM signals
+		go func() {
+			for s := range sig {
+				log.WARNING.Printf("Signal received: %v", s)
+				signalsReceived++
+
+				if signalsReceived < 2 {
+					// After first Ctrl+C start quitting the worker gracefully
+					log.WARNING.Print("Waiting for running tasks to finish before shutting down")
+					signalWG.Add(1)
+					go func() {
+						worker.Quit()
+						errorsChan <- ErrWorkerQuitGracefully
+						signalWG.Done()
+					}()
+				} else {
+					// Abort the program when user hits Ctrl+C second time in a row
+					errorsChan <- ErrWorkerQuitAbruptly
+				}
+			}
+		}()
+	}*/
 }
 
 // CustomQueue returns Custom Queue of the running worker process
@@ -229,6 +229,7 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	// Delay task by signature.RetryTimeout seconds
 	eta := time.Now().Add(time.Second * time.Duration(timeout))
 	signature.ETA = &eta
+	signature.DelayRoutingKey = worker.CustomDelayQueue()
 
 	log.WARNING.Printf("Task %s failed. Going to retry in %d seconds.", signature.UUID, signature.RetryTimeout)
 
