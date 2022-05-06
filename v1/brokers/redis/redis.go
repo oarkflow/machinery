@@ -206,14 +206,24 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 		now := time.Now().UTC()
 
 		if signature.ETA.After(now) {
-			score := signature.ETA.UnixNano()
-			_, err = conn.Do("ZADD", b.redisDelayedTasksKey, score, msg)
-			return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				score := signature.ETA.UnixNano()
+				_, err = conn.Do("ZADD", b.redisDelayedTasksKey, score, msg)
+				return err
+			}
 		}
 	}
 
-	_, err = conn.Do("RPUSH", signature.RoutingKey, msg)
-	return err
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		_, err = conn.Do("RPUSH", signature.RoutingKey, msg)
+		return err
+	}
 }
 
 // GetPendingTasks returns a slice of task signatures waiting in the queue
