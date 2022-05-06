@@ -211,7 +211,7 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 				return ctx.Err()
 			default:
 				score := signature.ETA.UnixNano()
-				_, err = conn.Do("ZADD", b.redisDelayedTasksKey, score, msg)
+				_, err = conn.Do("ZADD", signature.DelayRoutingKey, score, msg)
 				return err
 			}
 		}
