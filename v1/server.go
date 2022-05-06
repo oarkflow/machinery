@@ -94,12 +94,13 @@ func (server *Server) NewWorker(consumerTag string, concurrency int) *Worker {
 }
 
 // NewCustomQueueWorker creates Worker instance with Custom Queue
-func (server *Server) NewCustomQueueWorker(consumerTag string, concurrency int, queue string) *Worker {
+func (server *Server) NewCustomQueueWorker(consumerTag string, concurrency int, queue, delayQue string) *Worker {
 	return &Worker{
 		server:      server,
 		ConsumerTag: consumerTag,
 		Concurrency: concurrency,
 		Queue:       queue,
+		DelayQue:    delayQue,
 	}
 }
 
