@@ -56,21 +56,22 @@ const (
 
 // Signature represents a single task invocation
 type Signature struct {
-	UUID           string       `bson:"uuid,omitempty"`
-	Name           string       `bson:"name,omitempty"`
-	RoutingKey     string       `bson:"routingKey,omitempty"`
-	ETA            *time.Time   `bson:"eta,omitempty"`
-	GroupUUID      string       `bson:"groupuuid,omitempty"`
-	GroupTaskCount int          `bson:"groupTaskCount,omitempty"`
-	Args           []Arg        `bson:"args,omitempty"`
-	Headers        Headers      `bson:"headers,omitempty"`
-	Priority       uint8        `bson:"priority,omitempty"`
-	Immutable      bool         `bson:"immutable,omitempty"`
-	RetryCount     int          `bson:"retryCount,omitempty"`
-	RetryTimeout   int          `bson:"retryTimeout,omitempty"`
-	OnSuccess      []*Signature `bson:"onSuccess,omitempty"`
-	OnError        []*Signature `bson:"onError,omitempty"`
-	ChordCallback  *Signature   `bson:"chordCallback,omitempty"`
+	UUID            string       `bson:"uuid,omitempty"`
+	Name            string       `bson:"name,omitempty"`
+	RoutingKey      string       `bson:"routingKey,omitempty"`
+	DelayRoutingKey string       `bson:"delayRoutingKey,omitempty"`
+	ETA             *time.Time   `bson:"eta,omitempty"`
+	GroupUUID       string       `bson:"groupuuid,omitempty"`
+	GroupTaskCount  int          `bson:"groupTaskCount,omitempty"`
+	Args            []Arg        `bson:"args,omitempty"`
+	Headers         Headers      `bson:"headers,omitempty"`
+	Priority        uint8        `bson:"priority,omitempty"`
+	Immutable       bool         `bson:"immutable,omitempty"`
+	RetryCount      int          `bson:"retryCount,omitempty"`
+	RetryTimeout    int          `bson:"retryTimeout,omitempty"`
+	OnSuccess       []*Signature `bson:"onSuccess,omitempty"`
+	OnError         []*Signature `bson:"onError,omitempty"`
+	ChordCallback   *Signature   `bson:"chordCallback,omitempty"`
 	//MessageGroupId for Broker, e.g. SQS
 	BrokerMessageGroupId string `bson:"brokerMessageGroupId,omitempty"`
 	//ReceiptHandle of SQS Message
