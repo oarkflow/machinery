@@ -53,6 +53,7 @@ var (
 
 // Config holds all configuration for our program
 type Config struct {
+	BrokerEncrypt           bool             `yaml:"broker_encrypt"`
 	Broker                  string           `yaml:"broker" envconfig:"BROKER"`
 	Lock                    string           `yaml:"lock" envconfig:"LOCK"`
 	MultipleBrokerSeparator string           `yaml:"multiple_broker_separator" envconfig:"MULTIPLE_BROKEN_SEPARATOR"`
