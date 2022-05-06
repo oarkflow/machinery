@@ -143,7 +143,7 @@ func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProce
 			case <-b.GetStopChan():
 				return
 			default:
-				task, err := b.nextDelayedTask(b.redisDelayedTasksKey)
+				task, err := b.nextDelayedTask(getDelayQueGR(b, taskProcessor))
 				if err != nil {
 					continue
 				}
@@ -170,6 +170,14 @@ func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProce
 	b.processingWG.Wait()
 
 	return b.GetRetry(), nil
+}
+
+func getDelayQueGR(b *BrokerGR, processor iface.TaskProcessor) string {
+	delayQue := processor.CustomDelayQueue()
+	if delayQue == "" {
+		return b.redisDelayedTasksKey
+	}
+	return delayQue
 }
 
 // StopConsuming quits the loop
@@ -199,14 +207,24 @@ func (b *BrokerGR) Publish(ctx context.Context, signature *tasks.Signature) erro
 		now := time.Now().UTC()
 
 		if signature.ETA.After(now) {
-			score := signature.ETA.UnixNano()
-			err = b.rclient.ZAdd(context.Background(), b.redisDelayedTasksKey, &redis.Z{Score: float64(score), Member: msg}).Err()
-			return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				score := signature.ETA.UnixNano()
+				err = b.rclient.ZAdd(context.Background(), signature.DelayRoutingKey, &redis.Z{Score: float64(score), Member: msg}).Err()
+				return err
+			}
 		}
 	}
 
-	err = b.rclient.RPush(context.Background(), signature.RoutingKey, msg).Err()
-	return err
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		err = b.rclient.RPush(ctx, signature.RoutingKey, msg).Err()
+		return err
+	}
 }
 
 // GetPendingTasks returns a slice of task signatures waiting in the queue
