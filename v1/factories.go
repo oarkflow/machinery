@@ -3,11 +3,10 @@ package machinery
 import (
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"os"
 	"strconv"
 	"strings"
-
-	neturl "net/url"
 
 	"github.com/RichardKnop/machinery/v1/config"
 
@@ -57,9 +56,11 @@ func BrokerFactory(cnf *config.Config) (brokeriface.Broker, error) {
 				cnf.Broker,
 			)
 		}
-		brokers := strings.Split(parts[1], ",")
+		split := strings.Split(parts[1], "/")
+		brokers := strings.Split(split[0], ",")
 		if len(brokers) > 1 || (cnf.Redis != nil && cnf.Redis.ClusterMode) {
-			return redisbroker.NewGR(cnf, brokers, 0), nil
+			db, _ := strconv.Atoi(split[1])
+			return redisbroker.NewGR(cnf, brokers, db), nil
 		} else {
 			redisHost, redisPassword, redisDB, err := ParseRedisURL(cnf.Broker)
 			if err != nil {
