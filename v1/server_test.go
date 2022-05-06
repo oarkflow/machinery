@@ -83,7 +83,7 @@ func TestNewCustomQueueWorker(t *testing.T) {
 
 	server := getTestServer(t)
 
-	server.NewCustomQueueWorker("test_customqueueworker", 1, "test_queue")
+	server.NewCustomQueueWorker("test_customqueueworker", 1, "test_queue","")
 	assert.NoError(t, nil)
 }
 
