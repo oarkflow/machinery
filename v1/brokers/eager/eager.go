@@ -28,6 +28,11 @@ type Mode interface {
 	AssignWorker(p iface.TaskProcessor)
 }
 
+func (eagerBroker *Broker) RemoveDelayTask(signature *tasks.Signature) error {
+	// todo implement
+	return nil
+}
+
 // StartConsuming enters a loop and waits for incoming messages
 func (eagerBroker *Broker) StartConsuming(consumerTag string, concurrency int, p iface.TaskProcessor) (bool, error) {
 	return true, nil

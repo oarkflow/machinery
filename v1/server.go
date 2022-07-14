@@ -224,6 +224,10 @@ func (server *Server) SendTaskAsyncWithContext(ctx context.Context, iSignature t
 	return nil
 }
 
+func (server *Server) RemoveDelyTask(signature *tasks.Signature) error {
+	return server.broker.RemoveDelayTask(signature)
+}
+
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
 func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendTask", tracing.ProducerOption(), tracing.MachineryTag)

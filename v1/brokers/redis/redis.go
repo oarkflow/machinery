@@ -226,6 +226,22 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 	}
 }
 
+func (b *Broker) RemoveDelayTask(signature *tasks.Signature) error {
+	msg, err := json.Marshal(signature)
+	if err != nil {
+		return fmt.Errorf("JSON marshal error: %s", err)
+	}
+
+	conn := b.open()
+	defer conn.Close()
+
+	_, err = conn.Do("ZREM", signature.DelayRoutingKey, msg)
+	if err != nil {
+		return fmt.Errorf("remove value from zset err", err)
+	}
+	return nil
+}
+
 // GetPendingTasks returns a slice of task signatures waiting in the queue
 func (b *Broker) GetPendingTasks(queue string) ([]*tasks.Signature, error) {
 	conn := b.open()
