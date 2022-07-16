@@ -424,3 +424,24 @@ func (b *Backend) GetLinkPayNotificationTask(evoTransID, notificationType string
 	}
 	return res, nil
 }
+
+func (b *Backend) CloseTask(uuid string) error {
+	filter := bson.M{
+		"signature.uuid": uuid,
+	}
+	change := bson.M{
+		"$set": bson.M{
+			"state": tasks.StateClosed,
+		},
+	}
+	_, err := b.tasksCollection().UpdateOne(context.Background(), filter, change, options.Update().SetUpsert(true))
+	return err
+}
+
+func (b *Backend) RemoveTask(uuid string) error {
+	filter := bson.M{
+		"signature.uuid": uuid,
+	}
+	_, err := b.tasksCollection().DeleteOne(context.Background(), filter)
+	return err
+}

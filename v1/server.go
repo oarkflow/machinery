@@ -225,7 +225,18 @@ func (server *Server) SendTaskAsyncWithContext(ctx context.Context, iSignature t
 }
 
 func (server *Server) RemoveDelyTask(signature *tasks.Signature) error {
-	return server.broker.RemoveDelayTask(signature)
+	err := server.broker.RemoveDelayTask(signature)
+	if err != nil {
+		msg := fmt.Sprintf("delete task from redis failed,uuid:%s", signature.UUID)
+		return fmt.Errorf(msg, err)
+	}
+	backend := server.backend.(*mongo.Backend)
+	err = backend.RemoveTask(signature.UUID)
+	if err != nil {
+		msg := fmt.Sprintf("delete task from mongo failed,uuid:%s", signature.UUID)
+		return fmt.Errorf(msg, err)
+	}
+	return err
 }
 
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
