@@ -30,6 +30,8 @@ type TransNotification struct {
 	ToMerMsg    string `bson:"toMerMsg,omitempty"`    // 对下异步通知内容（内部字段）
 	SendTimes   int    `bson:"sendTimes,omitempty"`   // 发送次数
 	Destination string `bson:"destination,omitempty"` // 消息投递目的地
+	ProductCode string `bson:"productCode,omitempty"`
+	TraceID     string `bson:"traceID,omitempty"`
 }
 
 // trans notification signature
