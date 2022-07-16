@@ -412,3 +412,15 @@ func (b *Backend) GetTaskByEvoTransID(evoTransID string) (*tasks.NotificationSig
 	}
 	return res, nil
 }
+
+func (b *Backend) GetLinkPayNotificationTask(evoTransID, notificationType string) (*tasks.NotificationSignature, error) {
+	res := new(tasks.NotificationSignature)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"evoTransID":       evoTransID,
+		"notificationType": notificationType,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
