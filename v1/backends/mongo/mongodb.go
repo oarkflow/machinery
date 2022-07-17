@@ -445,3 +445,15 @@ func (b *Backend) RemoveTask(uuid string) error {
 	_, err := b.tasksCollection().DeleteOne(context.Background(), filter)
 	return err
 }
+
+func (b *Backend) GetSignature(taskID string) (*tasks.Signature, error) {
+	query := bson.M{
+		"taskID": taskID,
+	}
+	result := new(tasks.Signature)
+	err := b.tasksCollection().FindOne(context.Background(), query).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
