@@ -72,6 +72,32 @@ func NewGR(cnf *config.Config, addrs []string, db int) iface.Broker {
 }
 
 func (b *BrokerGR) SendDelayTask(ctx context.Context, signature tasks.Signature) error {
+	// Adjust routing key (this decides which queue the message will be published to)
+	b.Broker.AdjustRoutingKey(&signature)
+	eta := signature.ETA
+	signature.ETA = nil
+
+	msg, err := json.Marshal(signature)
+	if err != nil {
+		return fmt.Errorf("JSON marshal error: %s", err)
+	}
+	signature.ETA = eta
+	// Check the ETA signature field, if it is set and it is in the future,
+	// delay the task
+	if signature.ETA != nil {
+		now := time.Now().UTC()
+
+		if signature.ETA.After(now) {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				score := signature.ETA.UnixNano()
+				err = b.rclient.ZAdd(context.Background(), signature.DelayRoutingKey, &redis.Z{Score: float64(score), Member: msg}).Err()
+				return err
+			}
+		}
+	}
 	return nil
 }
 

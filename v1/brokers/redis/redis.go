@@ -235,7 +235,6 @@ func (b *Broker) SendDelayTask(ctx context.Context, signature tasks.Signature) e
 	if err != nil {
 		return fmt.Errorf("JSON marshal error: %s", err)
 	}
-	fmt.Print(string(msg))
 	conn := b.open()
 	defer conn.Close()
 
