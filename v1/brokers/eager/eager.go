@@ -28,6 +28,10 @@ type Mode interface {
 	AssignWorker(p iface.TaskProcessor)
 }
 
+func (eagerBroker *Broker) SendDelayTask(ctx context.Context, signature tasks.Signature) error {
+	return nil
+}
+
 func (eagerBroker *Broker) RemoveDelayTask(signature *tasks.Signature) error {
 	// todo implement
 	return nil

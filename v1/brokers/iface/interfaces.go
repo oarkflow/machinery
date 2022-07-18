@@ -19,6 +19,7 @@ type Broker interface {
 	GetDelayedTasks() ([]*tasks.Signature, error)
 	AdjustRoutingKey(s *tasks.Signature)
 	RemoveDelayTask(signature *tasks.Signature) error
+	SendDelayTask(context.Context, tasks.Signature) error
 }
 
 // TaskProcessor - can process a delivered task

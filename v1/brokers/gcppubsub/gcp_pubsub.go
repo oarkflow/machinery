@@ -82,6 +82,9 @@ func New(cnf *config.Config, projectID, subscriptionName string) (iface.Broker, 
 	return b, nil
 }
 
+func (b *Broker) SendDelayTask(ctx context.Context, signature tasks.Signature) error {
+	return nil
+}
 
 func (b *Broker) RemoveDelayTask(signature *tasks.Signature) error {
 	// todo implement

@@ -187,7 +187,7 @@ func (server *Server) SendTaskAsyncWithContext(ctx context.Context, iSignature t
 	signature := iSignature.GetSig()
 
 	// tag the span with some info about the signature
-	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+	//signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
 
 	// Make sure result backend is defined
 	if server.backend == nil {
@@ -224,13 +224,50 @@ func (server *Server) SendTaskAsyncWithContext(ctx context.Context, iSignature t
 	return nil
 }
 
-func (server *Server) RemoveDelyTask(signature *tasks.Signature) error {
-	err := server.broker.RemoveDelayTask(signature)
+func (server *Server) SendDelayTask(ctx context.Context, iSignature tasks.SignatureInterface) error {
+	signature := iSignature.GetSig()
+	if server.backend == nil {
+		return errors.New("Result backend required")
+	}
+	if signature.UUID == "" {
+		taskID := uuid.New().String()
+		signature.UUID = fmt.Sprintf("task_%v", taskID)
+	}
+	if mongoBackEnd, ok := server.backend.(*mongo.Backend); !ok {
+		return fmt.Errorf("currenct backEnd implemention is not mongo,please check")
+	} else {
+		err := mongoBackEnd.SaveStatePending(iSignature)
+		if err != nil {
+			return fmt.Errorf("Set state pending error: %s", err)
+		}
+	}
+	if server.prePublishHandler != nil {
+		server.prePublishHandler(signature)
+	}
+
+	if err := server.broker.SendDelayTask(ctx, *signature); err != nil {
+		return fmt.Errorf("Publish message error: %s", err)
+	}
+
+	return nil
+}
+
+func (server *Server) RemoveDelyTask(taskID string) error {
+	backend := server.backend.(*mongo.Backend)
+	expireTaskInfo, err := backend.GetSignature(taskID)
+	if err != nil {
+		return err
+	}
+	signature := expireTaskInfo.GetSig()
+
+	// todosysGenNum
+	signature.ETA = nil
+
+	err = server.broker.RemoveDelayTask(signature)
 	if err != nil {
 		msg := fmt.Sprintf("delete task from redis failed,uuid:%s", signature.UUID)
 		return fmt.Errorf(msg, err)
 	}
-	backend := server.backend.(*mongo.Backend)
 	err = backend.RemoveTask(signature.UUID)
 	if err != nil {
 		msg := fmt.Sprintf("delete task from mongo failed,uuid:%s", signature.UUID)

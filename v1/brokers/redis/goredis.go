@@ -71,6 +71,10 @@ func NewGR(cnf *config.Config, addrs []string, db int) iface.Broker {
 	return b
 }
 
+func (b *BrokerGR) SendDelayTask(ctx context.Context, signature tasks.Signature) error {
+	return nil
+}
+
 // StartConsuming enters a loop and waits for incoming messages
 func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProcessor iface.TaskProcessor) (bool, error) {
 	b.consumingWG.Add(1)

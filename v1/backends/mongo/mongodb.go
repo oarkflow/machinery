@@ -446,11 +446,11 @@ func (b *Backend) RemoveTask(uuid string) error {
 	return err
 }
 
-func (b *Backend) GetSignature(taskID string) (*tasks.Signature, error) {
+func (b *Backend) GetSignature(taskID string) (*tasks.ExpireOrderTask, error) {
 	query := bson.M{
 		"taskID": taskID,
 	}
-	result := new(tasks.Signature)
+	result := new(tasks.ExpireOrderTask)
 	err := b.tasksCollection().FindOne(context.Background(), query).Decode(&result)
 	if err != nil {
 		return nil, err

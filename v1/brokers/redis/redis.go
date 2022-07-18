@@ -226,12 +226,44 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 	}
 }
 
+func (b *Broker) SendDelayTask(ctx context.Context, signature tasks.Signature) error {
+	b.Broker.AdjustRoutingKey(&signature)
+	eta := signature.ETA
+	signature.ETA = nil
+
+	msg, err := json.Marshal(signature)
+	if err != nil {
+		return fmt.Errorf("JSON marshal error: %s", err)
+	}
+	fmt.Print(string(msg))
+	conn := b.open()
+	defer conn.Close()
+
+	signature.ETA = eta
+	// Check the ETA signature field, if it is set and it is in the future,
+	// delay the task
+	if signature.ETA != nil {
+		now := time.Now().UTC()
+
+		if signature.ETA.After(now) {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				score := signature.ETA.UnixNano()
+				_, err = conn.Do("ZADD", signature.DelayRoutingKey, score, msg)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (b *Broker) RemoveDelayTask(signature *tasks.Signature) error {
 	msg, err := json.Marshal(signature)
 	if err != nil {
 		return fmt.Errorf("JSON marshal error: %s", err)
 	}
-
 	conn := b.open()
 	defer conn.Close()
 

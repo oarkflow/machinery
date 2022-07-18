@@ -44,6 +44,10 @@ func New(cnf *config.Config) iface.Broker {
 	return &Broker{Broker: common.NewBroker(cnf), AMQPConnector: common.AMQPConnector{}, connections: make(map[string]*AMQPConnection)}
 }
 
+func (b *Broker) SendDelayTask(context.Context, tasks.Signature) error {
+	return nil
+}
+
 func (b *Broker) RemoveDelayTask(signature *tasks.Signature) error {
 	// todo implement
 	return nil
