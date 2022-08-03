@@ -18,6 +18,7 @@ type OrderExpiredTask struct {
 	TraceID      string     `bson:"traceID,omitempty"`
 	ValidTime    int        `bson:"validTime,omitempty"`
 	ExpiredTime  *time.Time `bson:"expiredTime,omitempty"`
+	TaskType     MsgType    `bson:"taskType,omitempty"`
 }
 
 func (e *ExpireOrderTask) GetSig() *Signature {

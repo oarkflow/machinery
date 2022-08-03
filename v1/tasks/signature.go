@@ -52,6 +52,7 @@ const (
 	PUSH         = MsgType(1)
 	EMAIL        = MsgType(2)
 	SMS          = MsgType(3)
+	EXPIRE       = MsgType(4)
 )
 
 // Signature represents a single task invocation
