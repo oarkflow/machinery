@@ -48,11 +48,11 @@ func (h Headers) ForeachKey(handler func(key, val string) error) error {
 type MsgType int
 
 const (
-	NOTIFICATION = MsgType(0)
-	PUSH         = MsgType(1)
-	EMAIL        = MsgType(2)
-	SMS          = MsgType(3)
-	EXPIRE       = MsgType(4)
+	NOTIFICATION = MsgType(1)
+	PUSH         = MsgType(2)
+	EMAIL        = MsgType(3)
+	SMS          = MsgType(4)
+	EXPIRE       = MsgType(5)
 )
 
 // Signature represents a single task invocation
