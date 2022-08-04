@@ -413,6 +413,30 @@ func (b *Backend) GetTaskByEvoTransID(evoTransID string) (*tasks.NotificationSig
 	return res, nil
 }
 
+func (b *Backend) GetTaskByTaskID(taskID string) (*tasks.NotificationSignature, error) {
+	res := new(tasks.NotificationSignature)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"taskID": taskID,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (b *Backend) GetTaskByUniqueKey(productCode, taskID string, taskType int) (*tasks.NotificationSignature, error) {
+	res := new(tasks.NotificationSignature)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"taskID":      taskID,
+		"productCode": productCode,
+		"taskType":    taskType,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func (b *Backend) GetLinkPayNotificationTask(evoTransID, notificationType string) (*tasks.NotificationSignature, error) {
 	res := new(tasks.NotificationSignature)
 	err := b.tasksCollection().FindOne(context.Background(), bson.M{
