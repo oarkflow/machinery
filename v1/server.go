@@ -252,12 +252,18 @@ func (server *Server) SendDelayTask(ctx context.Context, iSignature tasks.Signat
 	return nil
 }
 
-func (server *Server) RemoveDelyTask(taskID string) error {
+func (server *Server) RemoveDelyTask(taskID, productCode, eventType string, taskType tasks.MsgType) error {
 	backend := server.backend.(*mongo.Backend)
-	expireTaskInfo, err := backend.GetSignature(taskID)
+
+	expireTaskInfo, err := backend.GetExpireOrderTask(taskID, productCode, eventType, taskType)
 	if err != nil {
-		return err
+		// fall back query
+		expireTaskInfo, err = backend.GetSignature(fmt.Sprintf("%s|ExpireOrder", taskID))
+		if err != nil {
+			return fmt.Errorf("find expire order task failed", err)
+		}
 	}
+
 	signature := expireTaskInfo.GetSig()
 
 	// todosysGenNum

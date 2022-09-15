@@ -3,12 +3,14 @@ package mongo_test
 import (
 	"os"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/RichardKnop/machinery/v1/backends/iface"
 	"github.com/RichardKnop/machinery/v1/backends/mongo"
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -88,6 +90,57 @@ func TestSetStateReceived(t *testing.T) {
 			assert.Equal(t, tasks.StateReceived, taskState.State, "Not StateReceived")
 		}
 	}
+}
+
+func TestSaveStatePending(t *testing.T) {
+	cnf := &config.Config{
+		ResultBackend:   "mongodb://config:config@hkg-test-mgo.everonet.com:23636,hkg-test-mgo.everonet.com:23637,hkg-test-mgo.everonet.com:23638/config",
+		ResultsExpireIn: 30,
+		MongoDB: &config.MongoDBConfig{
+			Database:        "config",
+			NoticeTasksColl: "evo.pigeon.noticeTasks",
+		},
+	}
+	backend, err := mongo.NewMongoBackEnd(cnf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	sig := &tasks.Signature{
+		UUID: "1232131231",
+		Name: "notification",
+		ETA:  &now,
+	}
+	ns := &tasks.NotificationSignature{
+		Signature: sig,
+		//EvoTransID: "12313",
+	}
+	err = backend.SaveStatePending(ns)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetTaskByEvoTransID(t *testing.T) {
+	cnf := &config.Config{
+		ResultBackend:   "mongodb://config:config@hkg-test-mgo.everonet.com:23636,hkg-test-mgo.everonet.com:23637,hkg-test-mgo.everonet.com:23638/config",
+		ResultsExpireIn: 30,
+		MongoDB: &config.MongoDBConfig{
+			Database:        "config",
+			NoticeTasksColl: "evo.pigeon.noticeTasks",
+		},
+	}
+	backend, err := mongo.NewMongoBackEnd(cnf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	task, err := backend.GetTaskByEvoTransID("1b7b6b7fcd0140a0ad43c427b66b15da")
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", task)
 }
 
 func TestSetStateStarted(t *testing.T) {

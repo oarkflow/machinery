@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/RichardKnop/machinery/v1/log"
 	"github.com/RichardKnop/machinery/v1/retry"
 	"github.com/RichardKnop/machinery/v1/utils"
-
-	"github.com/google/uuid"
 )
 
 // Arg represents a single argument passed to invocation fo a task
@@ -53,6 +53,7 @@ const (
 	EMAIL        = MsgType(3)
 	SMS          = MsgType(4)
 	EXPIRE       = MsgType(5)
+	DELAY        = MsgType(6)
 )
 
 // Signature represents a single task invocation
@@ -108,10 +109,17 @@ func (s *Signature) NextRetryTimeout() (retryTimeout int) {
 }
 
 // NewSignature creates a new task signature
-func NewSignature(name string, args []Arg) (*Signature, error) {
+func NewSignature(name string) (*Signature, error) {
 	signatureID := uuid.New().String()
+	uniqueID := fmt.Sprintf("task_%v", signatureID)
+	args := []Arg{
+		{
+			Type:  "string",
+			Value: uniqueID,
+		},
+	}
 	return &Signature{
-		UUID: fmt.Sprintf("task_%v", signatureID),
+		UUID: uniqueID,
 		Name: name,
 		Args: args,
 	}, nil

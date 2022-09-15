@@ -16,25 +16,26 @@ type SignatureInterface interface {
 }
 
 type CommonSignature struct {
-	CreateTime time.Time `bson:"createTime,omitempty"`
-	UpdateTime time.Time `bson:"updateTime,omitempty"`
-	State      string    `bson:"state,omitempty"`
+	CreateTime  time.Time `bson:"createTime,omitempty"`
+	UpdateTime  time.Time `bson:"updateTime,omitempty"`
+	State       string    `bson:"state,omitempty"`
+	ProductCode string    `bson:"productCode,omitempty"` // 产品名称、模块名称
+	TaskType    MsgType   `bson:"taskType,omitempty"`    // 任务类型
+	EventType   string    `bson:"eventType,omitempty"`   // 事件类型
+	TaskID      string    `bson:"taskID,omitempty"`      // 数据实体唯一ID
 }
 
+// uniqueID:productCode+taskType+eventType+taskID
 type TransNotification struct {
-	InsCode      string `bson:"insCode,omitempty"`
-	IntStoreCode string `bson:"intStoreCode,omitempty"`
-	EvoTransID   string `bson:"evoTransID,omitempty"`
-	// MsgTye      int    `bson:"msgTye,omitempty"`      // 0-异步通知 1-Push通知 2-Email通知 3-SMS通知
-	FromChanMsg      string  `bson:"fromChanMsg,omitempty"` // 渠道异步消息报文（内部字段）
-	ToMerMsg         string  `bson:"toMerMsg,omitempty"`    // 对下异步通知内容（内部字段）
-	SendTimes        int     `bson:"sendTimes,omitempty"`   // 发送次数
-	Destination      string  `bson:"destination,omitempty"` // 消息投递目的地
-	ProductCode      string  `bson:"productCode,omitempty"`
-	TraceID          string  `bson:"traceID,omitempty"`
-	NotificationType string  `bson:"notificationType,omitempty"`
-	TaskID           string  `bson:"taskID,omitempty"`
-	TaskType         MsgType `bson:"taskType,omitempty"`
+	InsCode          string `bson:"insCode,omitempty"`
+	IntStoreCode     string `bson:"intStoreCode,omitempty"`
+	EvoTransID       string `bson:"evoTransID,omitempty"`
+	FromChanMsg      string `bson:"fromChanMsg,omitempty"` // 渠道异步消息报文（内部字段）
+	ToMerMsg         string `bson:"toMerMsg,omitempty"`    // 对下异步通知内容（内部字段）
+	SendTimes        int    `bson:"sendTimes,omitempty"`   // 发送次数
+	Destination      string `bson:"destination,omitempty"` // 消息投递目的地
+	TraceID          string `bson:"traceID,omitempty"`
+	NotificationType string `bson:"notificationType,omitempty"`
 }
 
 // trans notification signature
@@ -45,7 +46,7 @@ type NotificationSignature struct {
 }
 
 func NewNotificationSignature(name string, args []Arg, tn *TransNotification) *NotificationSignature {
-	sig, _ := NewSignature(name, args)
+	sig, _ := NewSignature(name)
 	sig.RetryCount = 9
 	sig.RoutingKey = QUE_TRANS_NOTIFICATION
 	create := time.Now()

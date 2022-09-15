@@ -424,6 +424,28 @@ func (b *Backend) GetTaskByTaskID(taskID string) (*tasks.NotificationSignature, 
 	return res, nil
 }
 
+func (b *Backend) GetTaskByUUID(uuid string) (*tasks.NotificationSignature, error) {
+	res := new(tasks.NotificationSignature)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"signature.uuid": uuid,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (b *Backend) GetExpireOrderTaskByUUID(uuid string) (*tasks.ExpireOrderTask, error) {
+	res := new(tasks.ExpireOrderTask)
+	err := b.tasksCollection().FindOne(context.Background(), bson.M{
+		"signature.uuid": uuid,
+	}).Decode(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func (b *Backend) GetTaskByUniqueKey(productCode, taskID string, taskType int) (*tasks.NotificationSignature, error) {
 	res := new(tasks.NotificationSignature)
 	err := b.tasksCollection().FindOne(context.Background(), bson.M{
@@ -473,6 +495,21 @@ func (b *Backend) RemoveTask(uuid string) error {
 func (b *Backend) GetSignature(taskID string) (*tasks.ExpireOrderTask, error) {
 	query := bson.M{
 		"taskID": taskID,
+	}
+	result := new(tasks.ExpireOrderTask)
+	err := b.tasksCollection().FindOne(context.Background(), query).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (b *Backend) GetExpireOrderTask(taskID, productCode, eventType string, taskType tasks.MsgType) (*tasks.ExpireOrderTask, error) {
+	query := bson.M{
+		"taskID":      taskID,
+		"productCode": productCode,
+		"eventType":   eventType,
+		"taskType":    taskType,
 	}
 	result := new(tasks.ExpireOrderTask)
 	err := b.tasksCollection().FindOne(context.Background(), query).Decode(&result)
