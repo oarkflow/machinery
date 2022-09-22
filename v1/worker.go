@@ -207,15 +207,15 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 
 // retryTask decrements RetryCount counter and republishes the task to the queue
 func (worker *Worker) taskRetry(signature *tasks.Signature) error {
-	// Update task state to RETRY
-	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
-		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
-	}
-
 	// Decrement the retry counter, when it reaches 0, we won't retry again
 	signature.RetryCount--
 
 	signature.Retries++
+
+	// Update task state to RETRY
+	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
+		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
+	}
 
 	// Increase retry timeout
 	//signature.RetryTimeout = retry.FibonacciNext(signature.RetryTimeout)

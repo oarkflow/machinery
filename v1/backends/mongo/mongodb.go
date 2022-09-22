@@ -150,8 +150,9 @@ func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
 // SetStateRetry updates task state to RETRY
 func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
 	update := bson.M{
-		"state":      tasks.StateRetry,
-		"updateTime": time.Now().UTC(),
+		"state":             tasks.StateRetry,
+		"updateTime":        time.Now().UTC(),
+		"signature.retries": signature.Retries,
 	}
 	return b.updateState(signature, update)
 }
@@ -280,6 +281,26 @@ func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks.TaskState, error) {
 		return nil, err
 	}
 	return states, nil
+}
+
+func (b *Backend) GetExecutingTasks() (signatures []*tasks.NotificationSignature, err error) {
+	executingStatus := []string{"RECEIVED", "STARTED", "RETRY"}
+	q := bson.M{
+		"state": bson.M{
+			"$in": executingStatus,
+		},
+	}
+	cur, err := b.tasksCollection().Find(context.Background(), q)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(context.Background())
+
+	err = cur.All(context.Background(), &signatures)
+	if err != nil {
+		return nil, err
+	}
+	return
 }
 
 // updateState saves current task state
