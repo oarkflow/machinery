@@ -2,7 +2,7 @@ package tracing
 
 import (
 	"encoding/json"
-	tasks2 "github.com/sujit-baniya/machinery/tasks"
+	tasks2 "github.com/oarkflow/machinery/tasks"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracing_ext "github.com/opentracing/opentracing-go/ext"

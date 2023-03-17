@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sujit-baniya/machinery/brokers/iface"
-	"github.com/sujit-baniya/machinery/common"
-	"github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // Broker represents an "eager" in-memory broker

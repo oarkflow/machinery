@@ -3,11 +3,11 @@ package dynamodb
 import (
 	"errors"
 	"fmt"
-	"github.com/sujit-baniya/machinery/backends/iface"
-	"github.com/sujit-baniya/machinery/common"
-	"github.com/sujit-baniya/machinery/config"
-	"github.com/sujit-baniya/machinery/log"
-	tasks2 "github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	tasks2 "github.com/oarkflow/machinery/tasks"
 	"math"
 	"time"
 

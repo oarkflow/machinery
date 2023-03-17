@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"github.com/sujit-baniya/machinery/utils"
+	"github.com/oarkflow/machinery/utils"
 	"time"
 
 	"github.com/google/uuid"

@@ -2,7 +2,7 @@ package retry
 
 import (
 	"fmt"
-	"github.com/sujit-baniya/machinery/log"
+	"github.com/oarkflow/machinery/log"
 	"time"
 )
 

@@ -1,7 +1,7 @@
 package common
 
 import (
-	"github.com/sujit-baniya/machinery/config"
+	"github.com/oarkflow/machinery/config"
 )
 
 // Backend represents a base backend structure

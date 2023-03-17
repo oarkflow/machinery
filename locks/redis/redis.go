@@ -3,7 +3,7 @@ package redis
 import (
 	"errors"
 	"github.com/go-redis/redis/v8"
-	"github.com/sujit-baniya/machinery/config"
+	"github.com/oarkflow/machinery/config"
 	"strconv"
 	"strings"
 	"time"

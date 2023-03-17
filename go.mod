@@ -1,4 +1,4 @@
-module github.com/sujit-baniya/machinery
+module github.com/oarkflow/machinery
 
 go 1.19
 

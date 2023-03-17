@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sujit-baniya/machinery/backends/iface"
-	"github.com/sujit-baniya/machinery/common"
-	"github.com/sujit-baniya/machinery/config"
-	tasks2 "github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	tasks2 "github.com/oarkflow/machinery/tasks"
 	"sync"
 )
 

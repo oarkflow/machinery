@@ -1,7 +1,7 @@
 package iface
 
 import (
-	tasks2 "github.com/sujit-baniya/machinery/tasks"
+	tasks2 "github.com/oarkflow/machinery/tasks"
 )
 
 // Backend - a common interface for all result backends

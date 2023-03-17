@@ -2,8 +2,8 @@ package result
 
 import (
 	"errors"
-	"github.com/sujit-baniya/machinery/backends/iface"
-	tasks2 "github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/backends/iface"
+	tasks2 "github.com/oarkflow/machinery/tasks"
 	"reflect"
 	"time"
 )

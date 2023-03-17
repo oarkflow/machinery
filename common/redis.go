@@ -2,7 +2,7 @@ package common
 
 import (
 	"crypto/tls"
-	"github.com/sujit-baniya/machinery/config"
+	"github.com/oarkflow/machinery/config"
 	"time"
 
 	"github.com/gomodule/redigo/redis"

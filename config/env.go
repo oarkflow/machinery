@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/kelseyhightower/envconfig"
-	"github.com/sujit-baniya/machinery/log"
+	"github.com/oarkflow/machinery/log"
 )
 
 // NewFromEnvironment creates a config object from environment variables

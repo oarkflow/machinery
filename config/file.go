@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/sujit-baniya/machinery/log"
+	"github.com/oarkflow/machinery/log"
 	"os"
 	"time"
 

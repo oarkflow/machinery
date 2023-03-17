@@ -2,11 +2,11 @@ package common
 
 import (
 	"errors"
-	"github.com/sujit-baniya/machinery/brokers/iface"
-	"github.com/sujit-baniya/machinery/config"
-	"github.com/sujit-baniya/machinery/log"
-	"github.com/sujit-baniya/machinery/retry"
-	"github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/retry"
+	"github.com/oarkflow/machinery/tasks"
 	"sync"
 )
 

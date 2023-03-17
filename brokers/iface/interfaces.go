@@ -2,8 +2,8 @@ package iface
 
 import (
 	"context"
-	"github.com/sujit-baniya/machinery/config"
-	"github.com/sujit-baniya/machinery/tasks"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // Broker - a common interface for all brokers
