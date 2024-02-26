@@ -19,24 +19,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	amqp "github.com/oarkflow/amqp/amqp091"
+
 	"github.com/oarkflow/machinery/backends/iface"
-	common2 "github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/common"
 	"github.com/oarkflow/machinery/config"
 	"github.com/oarkflow/machinery/log"
-	tasks2 "github.com/oarkflow/machinery/tasks"
-
-	"github.com/streadway/amqp"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // Backend represents an AMQP result backend
 type Backend struct {
-	common2.Backend
-	common2.AMQPConnector
+	common.Backend
+	common.AMQPConnector
 }
 
 // New creates Backend instance
 func New(cnf *config.Config) iface.Backend {
-	return &Backend{Backend: common2.NewBackend(cnf), AMQPConnector: common2.AMQPConnector{}}
+	return &Backend{Backend: common.NewBackend(cnf), AMQPConnector: common.AMQPConnector{}}
 }
 
 // InitGroup creates and saves a group meta data object
@@ -63,7 +64,7 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks2.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
 	conn, channel, err := b.Open(b.GetConfig().ResultBackend, b.GetConfig().TLSConfig)
 	if err != nil {
 		return nil, err
@@ -92,11 +93,11 @@ func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*task
 		return nil, fmt.Errorf("Queue consume error: %s", err)
 	}
 
-	states := make([]*tasks2.TaskState, groupTaskCount)
+	states := make([]*tasks.TaskState, groupTaskCount)
 	for i := 0; i < groupTaskCount; i++ {
 		d := <-deliveries
 
-		state := new(tasks2.TaskState)
+		state := new(tasks.TaskState)
 		decoder := json.NewDecoder(bytes.NewReader([]byte(d.Body)))
 		decoder.UseNumber()
 		if err := decoder.Decode(state); err != nil {
@@ -132,32 +133,32 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 }
 
 // SetStatePending updates task state to PENDING
-func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
-	taskState := tasks2.NewPendingTaskState(signature)
+func (b *Backend) SetStatePending(signature *tasks.Signature) error {
+	taskState := tasks.NewPendingTaskState(signature)
 	return b.updateState(taskState)
 }
 
 // SetStateReceived updates task state to RECEIVED
-func (b *Backend) SetStateReceived(signature *tasks2.Signature) error {
-	taskState := tasks2.NewReceivedTaskState(signature)
+func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
+	taskState := tasks.NewReceivedTaskState(signature)
 	return b.updateState(taskState)
 }
 
 // SetStateStarted updates task state to STARTED
-func (b *Backend) SetStateStarted(signature *tasks2.Signature) error {
-	taskState := tasks2.NewStartedTaskState(signature)
+func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
+	taskState := tasks.NewStartedTaskState(signature)
 	return b.updateState(taskState)
 }
 
 // SetStateRetry updates task state to RETRY
-func (b *Backend) SetStateRetry(signature *tasks2.Signature) error {
-	state := tasks2.NewRetryTaskState(signature)
+func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
+	state := tasks.NewRetryTaskState(signature)
 	return b.updateState(state)
 }
 
 // SetStateSuccess updates task state to SUCCESS
-func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2.TaskResult) error {
-	taskState := tasks2.NewSuccessTaskState(signature, results)
+func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
+	taskState := tasks.NewSuccessTaskState(signature, results)
 
 	if err := b.updateState(taskState); err != nil {
 		return err
@@ -171,8 +172,8 @@ func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2
 }
 
 // SetStateFailure updates task state to FAILURE
-func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error {
-	taskState := tasks2.NewFailureTaskState(signature, err)
+func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
+	taskState := tasks.NewFailureTaskState(signature, err)
 
 	if err := b.updateState(taskState); err != nil {
 		return err
@@ -187,7 +188,7 @@ func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error
 
 // GetState returns the latest task state. It will only return the status once
 // as the message will get consumed and removed from the queue.
-func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
+func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
 	declareQueueArgs := amqp.Table{
 		// Time in milliseconds
 		// after that message will expire
@@ -227,7 +228,7 @@ func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
 
 	d.Ack(false)
 
-	state := new(tasks2.TaskState)
+	state := new(tasks.TaskState)
 	decoder := json.NewDecoder(bytes.NewReader([]byte(d.Body)))
 	decoder.UseNumber()
 	if err := decoder.Decode(state); err != nil {
@@ -264,7 +265,7 @@ func (b *Backend) PurgeGroupMeta(groupUUID string) error {
 }
 
 // updateState saves current task state
-func (b *Backend) updateState(taskState *tasks2.TaskState) error {
+func (b *Backend) updateState(taskState *tasks.TaskState) error {
 	message, err := json.Marshal(taskState)
 	if err != nil {
 		return fmt.Errorf("JSON marshal error: %s", err)
@@ -332,7 +333,7 @@ func (b *Backend) getExpiresIn() int {
 // markTaskCompleted marks task as completed in either groupdUUID_success
 // or groupUUID_failure queue. This is important for GroupCompleted and
 // GroupSuccessful methods
-func (b *Backend) markTaskCompleted(signature *tasks2.Signature, taskState *tasks2.TaskState) error {
+func (b *Backend) markTaskCompleted(signature *tasks.Signature, taskState *tasks.TaskState) error {
 	if signature.GroupUUID == "" || signature.GroupTaskCount == 0 {
 		return nil
 	}

@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/oarkflow/machinery/backends/iface"
-	"github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	tasks2 "github.com/oarkflow/machinery/tasks"
 	"reflect"
 	"strings"
 	"sync"
@@ -17,6 +12,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // Backend represents a MongoDB result backend
@@ -40,7 +41,7 @@ func New(cnf *config.Config) (iface.Backend, error) {
 
 // InitGroup creates and saves a group meta data object
 func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
-	groupMeta := &tasks2.GroupMeta{
+	groupMeta := &tasks.GroupMeta{
 		GroupUUID: groupUUID,
 		TaskUUIDs: taskUUIDs,
 		CreatedAt: time.Now().UTC(),
@@ -72,10 +73,10 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks2.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
 	groupMeta, err := b.getGroupMeta(groupUUID)
 	if err != nil {
-		return []*tasks2.TaskState{}, err
+		return []*tasks.TaskState{}, err
 	}
 
 	return b.getStates(groupMeta.TaskUUIDs...)
@@ -109,9 +110,9 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 }
 
 // SetStatePending updates task state to PENDING
-func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
+func (b *Backend) SetStatePending(signature *tasks.Signature) error {
 	update := bson.M{
-		"state":      tasks2.StatePending,
+		"state":      tasks.StatePending,
 		"task_name":  signature.Name,
 		"created_at": time.Now().UTC(),
 	}
@@ -119,44 +120,44 @@ func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
 }
 
 // SetStateReceived updates task state to RECEIVED
-func (b *Backend) SetStateReceived(signature *tasks2.Signature) error {
-	update := bson.M{"state": tasks2.StateReceived}
+func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
+	update := bson.M{"state": tasks.StateReceived}
 	return b.updateState(signature, update)
 }
 
 // SetStateStarted updates task state to STARTED
-func (b *Backend) SetStateStarted(signature *tasks2.Signature) error {
-	update := bson.M{"state": tasks2.StateStarted}
+func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
+	update := bson.M{"state": tasks.StateStarted}
 	return b.updateState(signature, update)
 }
 
 // SetStateRetry updates task state to RETRY
-func (b *Backend) SetStateRetry(signature *tasks2.Signature) error {
-	update := bson.M{"state": tasks2.StateRetry}
+func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
+	update := bson.M{"state": tasks.StateRetry}
 	return b.updateState(signature, update)
 }
 
 // SetStateSuccess updates task state to SUCCESS
-func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2.TaskResult) error {
+func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
 	decodedResults := b.decodeResults(results)
 	update := bson.M{
-		"state":   tasks2.StateSuccess,
+		"state":   tasks.StateSuccess,
 		"results": decodedResults,
 	}
 	return b.updateState(signature, update)
 }
 
 // decodeResults detects & decodes json strings in TaskResult.Value and returns a new slice
-func (b *Backend) decodeResults(results []*tasks2.TaskResult) []*tasks2.TaskResult {
+func (b *Backend) decodeResults(results []*tasks.TaskResult) []*tasks.TaskResult {
 	l := len(results)
-	jsonResults := make([]*tasks2.TaskResult, l)
+	jsonResults := make([]*tasks.TaskResult, l)
 	for i, result := range results {
 		jsonResult := new(bson.M)
 		resultType := reflect.TypeOf(result.Value).Kind()
 		if resultType == reflect.String {
 			err := json.NewDecoder(strings.NewReader(result.Value.(string))).Decode(&jsonResult)
 			if err == nil {
-				jsonResults[i] = &tasks2.TaskResult{
+				jsonResults[i] = &tasks.TaskResult{
 					Type:  "json",
 					Value: jsonResult,
 				}
@@ -169,14 +170,14 @@ func (b *Backend) decodeResults(results []*tasks2.TaskResult) []*tasks2.TaskResu
 }
 
 // SetStateFailure updates task state to FAILURE
-func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error {
-	update := bson.M{"state": tasks2.StateFailure, "error": err}
+func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
+	update := bson.M{"state": tasks.StateFailure, "error": err}
 	return b.updateState(signature, update)
 }
 
 // GetState returns the latest task state
-func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
-	state := &tasks2.TaskState{}
+func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
+	state := &tasks.TaskState{}
 	err := b.tasksCollection().FindOne(context.Background(), bson.M{"_id": taskUUID}).Decode(state)
 
 	if err != nil {
@@ -222,8 +223,8 @@ func (b *Backend) unlockGroupMeta(groupUUID string) error {
 }
 
 // getGroupMeta retrieves group meta data, convenience function to avoid repetition
-func (b *Backend) getGroupMeta(groupUUID string) (*tasks2.GroupMeta, error) {
-	groupMeta := &tasks2.GroupMeta{}
+func (b *Backend) getGroupMeta(groupUUID string) (*tasks.GroupMeta, error) {
+	groupMeta := &tasks.GroupMeta{}
 	query := bson.M{"_id": groupUUID}
 
 	err := b.groupMetasCollection().FindOne(context.Background(), query).Decode(groupMeta)
@@ -234,8 +235,8 @@ func (b *Backend) getGroupMeta(groupUUID string) (*tasks2.GroupMeta, error) {
 }
 
 // getStates returns multiple task states
-func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks2.TaskState, error) {
-	states := make([]*tasks2.TaskState, 0, len(taskUUIDs))
+func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks.TaskState, error) {
+	states := make([]*tasks.TaskState, 0, len(taskUUIDs))
 	cur, err := b.tasksCollection().Find(context.Background(), bson.M{"_id": bson.M{"$in": taskUUIDs}})
 	if err != nil {
 		return nil, err
@@ -243,7 +244,7 @@ func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks2.TaskState, error) {
 	defer cur.Close(context.Background())
 
 	for cur.Next(context.Background()) {
-		state := &tasks2.TaskState{}
+		state := &tasks.TaskState{}
 		if err := cur.Decode(state); err != nil {
 			return nil, err
 		}
@@ -256,7 +257,7 @@ func (b *Backend) getStates(taskUUIDs ...string) ([]*tasks2.TaskState, error) {
 }
 
 // updateState saves current task state
-func (b *Backend) updateState(signature *tasks2.Signature, update bson.M) error {
+func (b *Backend) updateState(signature *tasks.Signature, update bson.M) error {
 	update = bson.M{"$set": update}
 	_, err := b.tasksCollection().UpdateOne(context.Background(), bson.M{"_id": signature.UUID}, update, options.Update().SetUpsert(true))
 	return err

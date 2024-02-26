@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"cloud.google.com/go/pubsub"
+
 	"github.com/oarkflow/machinery/brokers/iface"
 	"github.com/oarkflow/machinery/common"
 	"github.com/oarkflow/machinery/config"
 	"github.com/oarkflow/machinery/log"
 	"github.com/oarkflow/machinery/tasks"
-	"time"
-
-	"cloud.google.com/go/pubsub"
 )
 
 // Broker represents an Google Cloud Pub/Sub broker

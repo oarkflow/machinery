@@ -4,22 +4,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/oarkflow/machinery/backends/iface"
-	common2 "github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	tasks2 "github.com/oarkflow/machinery/tasks"
 	"sync"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
 	redsyncredis "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
+
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // Backend represents a Redis result backend
 type Backend struct {
-	common2.Backend
+	common.Backend
 	host     string
 	password string
 	db       int
@@ -28,13 +29,13 @@ type Backend struct {
 	socketPath string
 	redsync    *redsync.Redsync
 	redisOnce  sync.Once
-	common2.RedisConnector
+	common.RedisConnector
 }
 
 // New creates Backend instance
 func New(cnf *config.Config, host, password, socketPath string, db int) iface.Backend {
 	return &Backend{
-		Backend:    common2.NewBackend(cnf),
+		Backend:    common.NewBackend(cnf),
 		host:       host,
 		db:         db,
 		password:   password,
@@ -44,7 +45,7 @@ func New(cnf *config.Config, host, password, socketPath string, db int) iface.Ba
 
 // InitGroup creates and saves a group meta data object
 func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
-	groupMeta := &tasks2.GroupMeta{
+	groupMeta := &tasks.GroupMeta{
 		GroupUUID: groupUUID,
 		TaskUUIDs: taskUUIDs,
 		CreatedAt: time.Now().UTC(),
@@ -93,13 +94,13 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks2.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
 	conn := b.open()
 	defer conn.Close()
 
 	groupMeta, err := b.getGroupMeta(conn, groupUUID)
 	if err != nil {
-		return []*tasks2.TaskState{}, err
+		return []*tasks.TaskState{}, err
 	}
 
 	return b.getStates(conn, groupMeta.TaskUUIDs...)
@@ -147,7 +148,7 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 	return true, nil
 }
 
-func (b *Backend) mergeNewTaskState(conn redis.Conn, newState *tasks2.TaskState) {
+func (b *Backend) mergeNewTaskState(conn redis.Conn, newState *tasks.TaskState) {
 	state, err := b.getState(conn, newState.TaskUUID)
 	if err == nil {
 		newState.CreatedAt = state.CreatedAt
@@ -156,78 +157,78 @@ func (b *Backend) mergeNewTaskState(conn redis.Conn, newState *tasks2.TaskState)
 }
 
 // SetStatePending updates task state to PENDING
-func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
+func (b *Backend) SetStatePending(signature *tasks.Signature) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewPendingTaskState(signature)
+	taskState := tasks.NewPendingTaskState(signature)
 	return b.updateState(conn, taskState)
 }
 
 // SetStateReceived updates task state to RECEIVED
-func (b *Backend) SetStateReceived(signature *tasks2.Signature) error {
+func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewReceivedTaskState(signature)
+	taskState := tasks.NewReceivedTaskState(signature)
 	b.mergeNewTaskState(conn, taskState)
 	return b.updateState(conn, taskState)
 }
 
 // SetStateStarted updates task state to STARTED
-func (b *Backend) SetStateStarted(signature *tasks2.Signature) error {
+func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewStartedTaskState(signature)
+	taskState := tasks.NewStartedTaskState(signature)
 	b.mergeNewTaskState(conn, taskState)
 	return b.updateState(conn, taskState)
 }
 
 // SetStateRetry updates task state to RETRY
-func (b *Backend) SetStateRetry(signature *tasks2.Signature) error {
+func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewRetryTaskState(signature)
+	taskState := tasks.NewRetryTaskState(signature)
 	b.mergeNewTaskState(conn, taskState)
 	return b.updateState(conn, taskState)
 }
 
 // SetStateSuccess updates task state to SUCCESS
-func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2.TaskResult) error {
+func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewSuccessTaskState(signature, results)
+	taskState := tasks.NewSuccessTaskState(signature, results)
 	b.mergeNewTaskState(conn, taskState)
 	return b.updateState(conn, taskState)
 }
 
 // SetStateFailure updates task state to FAILURE
-func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error {
+func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
 	conn := b.open()
 	defer conn.Close()
 
-	taskState := tasks2.NewFailureTaskState(signature, err)
+	taskState := tasks.NewFailureTaskState(signature, err)
 	b.mergeNewTaskState(conn, taskState)
 	return b.updateState(conn, taskState)
 }
 
 // GetState returns the latest task state
-func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
+func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
 	conn := b.open()
 	defer conn.Close()
 
 	return b.getState(conn, taskUUID)
 }
 
-func (b *Backend) getState(conn redis.Conn, taskUUID string) (*tasks2.TaskState, error) {
+func (b *Backend) getState(conn redis.Conn, taskUUID string) (*tasks.TaskState, error) {
 	item, err := redis.Bytes(conn.Do("GET", taskUUID))
 	if err != nil {
 		return nil, err
 	}
-	state := new(tasks2.TaskState)
+	state := new(tasks.TaskState)
 	decoder := json.NewDecoder(bytes.NewReader(item))
 	decoder.UseNumber()
 	if err := decoder.Decode(state); err != nil {
@@ -264,14 +265,14 @@ func (b *Backend) PurgeGroupMeta(groupUUID string) error {
 }
 
 // getGroupMeta retrieves group meta data, convenience function to avoid repetition
-func (b *Backend) getGroupMeta(conn redis.Conn, groupUUID string) (*tasks2.GroupMeta, error) {
+func (b *Backend) getGroupMeta(conn redis.Conn, groupUUID string) (*tasks.GroupMeta, error) {
 
 	item, err := redis.Bytes(conn.Do("GET", groupUUID))
 	if err != nil {
 		return nil, err
 	}
 
-	groupMeta := new(tasks2.GroupMeta)
+	groupMeta := new(tasks.GroupMeta)
 	decoder := json.NewDecoder(bytes.NewReader(item))
 	decoder.UseNumber()
 	if err := decoder.Decode(groupMeta); err != nil {
@@ -282,8 +283,8 @@ func (b *Backend) getGroupMeta(conn redis.Conn, groupUUID string) (*tasks2.Group
 }
 
 // getStates returns multiple task states
-func (b *Backend) getStates(conn redis.Conn, taskUUIDs ...string) ([]*tasks2.TaskState, error) {
-	taskStates := make([]*tasks2.TaskState, len(taskUUIDs))
+func (b *Backend) getStates(conn redis.Conn, taskUUIDs ...string) ([]*tasks.TaskState, error) {
+	taskStates := make([]*tasks.TaskState, len(taskUUIDs))
 
 	// conn.Do requires []interface{}... can't pass []string unfortunately
 	taskUUIDInterfaces := make([]interface{}, len(taskUUIDs))
@@ -302,7 +303,7 @@ func (b *Backend) getStates(conn redis.Conn, taskUUIDs ...string) ([]*tasks2.Tas
 			return taskStates, fmt.Errorf("Expected byte array, instead got: %v", value)
 		}
 
-		taskState := new(tasks2.TaskState)
+		taskState := new(tasks.TaskState)
 		decoder := json.NewDecoder(bytes.NewReader(stateBytes))
 		decoder.UseNumber()
 		if err := decoder.Decode(taskState); err != nil {
@@ -317,7 +318,7 @@ func (b *Backend) getStates(conn redis.Conn, taskUUIDs ...string) ([]*tasks2.Tas
 }
 
 // updateState saves current task state
-func (b *Backend) updateState(conn redis.Conn, taskState *tasks2.TaskState) error {
+func (b *Backend) updateState(conn redis.Conn, taskState *tasks.TaskState) error {
 	encoded, err := json.Marshal(taskState)
 	if err != nil {
 		return err

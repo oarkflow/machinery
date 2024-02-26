@@ -2,8 +2,9 @@ package retry
 
 import (
 	"fmt"
-	"github.com/oarkflow/machinery/log"
 	"time"
+
+	"github.com/oarkflow/machinery/log"
 )
 
 // Closure - a useful closure we can use when there is a problem

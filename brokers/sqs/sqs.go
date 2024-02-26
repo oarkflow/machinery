@@ -5,12 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/oarkflow/machinery/brokers/errs"
-	"github.com/oarkflow/machinery/brokers/iface"
-	"github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	"github.com/oarkflow/machinery/tasks"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +12,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+
+	"github.com/oarkflow/machinery/brokers/errs"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 
 	awssqs "github.com/aws/aws-sdk-go/service/sqs"
 )
@@ -61,7 +62,7 @@ func New(cnf *config.Config) iface.Broker {
 func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcessor iface.TaskProcessor) (bool, error) {
 	b.Broker.StartConsuming(consumerTag, concurrency, taskProcessor)
 	qURL := b.getQueueURL(taskProcessor)
-	//save it so that it can be used later when attempting to delete task
+	// save it so that it can be used later when attempting to delete task
 	b.queueUrl = qURL
 
 	deliveries := make(chan *awssqs.ReceiveMessageOutput, concurrency)
@@ -91,7 +92,7 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 					deliveries <- output
 
 				} else {
-					//return back to pool right away
+					// return back to pool right away
 					pool <- struct{}{}
 					if err != nil {
 						log.ERROR.Printf("Queue consume error: %s", err)

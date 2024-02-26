@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/kelseyhightower/envconfig"
+
 	"github.com/oarkflow/machinery/log"
 )
 

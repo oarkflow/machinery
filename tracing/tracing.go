@@ -2,9 +2,10 @@ package tracing
 
 import (
 	"encoding/json"
-	tasks2 "github.com/oarkflow/machinery/tasks"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/oarkflow/machinery/tasks"
+
+	"github.com/opentracing/opentracing-go"
 	opentracing_ext "github.com/opentracing/opentracing-go/ext"
 	opentracing_log "github.com/opentracing/opentracing-go/log"
 )
@@ -19,7 +20,7 @@ var (
 
 // StartSpanFromHeaders will extract a span from the signature headers
 // and start a new span with the given operation name.
-func StartSpanFromHeaders(headers tasks2.Headers, operationName string) opentracing.Span {
+func StartSpanFromHeaders(headers tasks.Headers, operationName string) opentracing.Span {
 	// Try to extract the span context from the carrier.
 	spanContext, err := opentracing.GlobalTracer().Extract(opentracing.TextMap, headers)
 
@@ -40,10 +41,10 @@ func StartSpanFromHeaders(headers tasks2.Headers, operationName string) opentrac
 }
 
 // HeadersWithSpan will inject a span into the signature headers
-func HeadersWithSpan(headers tasks2.Headers, span opentracing.Span) tasks2.Headers {
+func HeadersWithSpan(headers tasks.Headers, span opentracing.Span) tasks.Headers {
 	// check if the headers aren't nil
 	if headers == nil {
-		headers = make(tasks2.Headers)
+		headers = make(tasks.Headers)
 	}
 
 	if err := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, headers); err != nil {
@@ -81,7 +82,7 @@ func ProducerOption() opentracing.StartSpanOption {
 }
 
 // AnnotateSpanWithSignatureInfo ...
-func AnnotateSpanWithSignatureInfo(span opentracing.Span, signature *tasks2.Signature) {
+func AnnotateSpanWithSignatureInfo(span opentracing.Span, signature *tasks.Signature) {
 	// tag the span with some info about the signature
 	span.SetTag("signature.name", signature.Name)
 	span.SetTag("signature.uuid", signature.UUID)
@@ -97,7 +98,7 @@ func AnnotateSpanWithSignatureInfo(span opentracing.Span, signature *tasks2.Sign
 }
 
 // AnnotateSpanWithChainInfo ...
-func AnnotateSpanWithChainInfo(span opentracing.Span, chain *tasks2.Chain) {
+func AnnotateSpanWithChainInfo(span opentracing.Span, chain *tasks.Chain) {
 	// tag the span with some info about the chain
 	span.SetTag("chain.tasks.length", len(chain.Tasks))
 
@@ -108,7 +109,7 @@ func AnnotateSpanWithChainInfo(span opentracing.Span, chain *tasks2.Chain) {
 }
 
 // AnnotateSpanWithGroupInfo ...
-func AnnotateSpanWithGroupInfo(span opentracing.Span, group *tasks2.Group, sendConcurrency int) {
+func AnnotateSpanWithGroupInfo(span opentracing.Span, group *tasks.Group, sendConcurrency int) {
 	// tag the span with some info about the group
 	span.SetTag("group.uuid", group.GroupUUID)
 	span.SetTag("group.tasks.length", len(group.Tasks))
@@ -128,7 +129,7 @@ func AnnotateSpanWithGroupInfo(span opentracing.Span, group *tasks2.Group, sendC
 }
 
 // AnnotateSpanWithChordInfo ...
-func AnnotateSpanWithChordInfo(span opentracing.Span, chord *tasks2.Chord, sendConcurrency int) {
+func AnnotateSpanWithChordInfo(span opentracing.Span, chord *tasks.Chord, sendConcurrency int) {
 	// tag the span with chord specific info
 	span.SetTag("chord.callback.uuid", chord.Callback.UUID)
 

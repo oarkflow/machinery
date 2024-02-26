@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/oarkflow/machinery/log"
 	"os"
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/oarkflow/machinery/log"
 )
 
 // NewFromYaml creates a config object from YAML file

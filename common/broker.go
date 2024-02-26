@@ -2,12 +2,13 @@ package common
 
 import (
 	"errors"
+	"sync"
+
 	"github.com/oarkflow/machinery/brokers/iface"
 	"github.com/oarkflow/machinery/config"
 	"github.com/oarkflow/machinery/log"
 	"github.com/oarkflow/machinery/retry"
 	"github.com/oarkflow/machinery/tasks"
-	"sync"
 )
 
 type registeredTaskNames struct {

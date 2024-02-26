@@ -5,17 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/oarkflow/machinery/brokers/errs"
-	"github.com/oarkflow/machinery/brokers/iface"
-	common2 "github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	"github.com/oarkflow/machinery/tasks"
 	"sync"
 	"time"
 
+	amqp "github.com/oarkflow/amqp/amqp091"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+
+	"github.com/oarkflow/machinery/brokers/errs"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 type AMQPConnection struct {
@@ -30,8 +31,8 @@ type AMQPConnection struct {
 
 // Broker represents an AMQP broker
 type Broker struct {
-	common2.Broker
-	common2.AMQPConnector
+	common.Broker
+	common.AMQPConnector
 	processingWG sync.WaitGroup // use wait group to make sure task processing completes on interrupt signal
 
 	connections      map[string]*AMQPConnection
@@ -40,7 +41,7 @@ type Broker struct {
 
 // New creates new Broker instance
 func New(cnf *config.Config) iface.Broker {
-	return &Broker{Broker: common2.NewBroker(cnf), AMQPConnector: common2.AMQPConnector{}, connections: make(map[string]*AMQPConnection)}
+	return &Broker{Broker: common.NewBroker(cnf), AMQPConnector: common.AMQPConnector{}, connections: make(map[string]*AMQPConnection)}
 }
 
 // StartConsuming enters a loop and waits for incoming messages
@@ -354,24 +355,48 @@ func (b *Broker) delay(signature *tasks.Signature, delayMs int64) error {
 		return fmt.Errorf("JSON marshal error: %s", err)
 	}
 
-	// It's necessary to redeclare the queue each time (to zero its TTL timer).
-	queueName := fmt.Sprintf(
-		"delay.%d.%s.%s",
-		delayMs, // delay duration in mileseconds
-		b.GetConfig().AMQP.Exchange,
-		signature.RoutingKey, // routing key
-	)
+	queueName := b.GetConfig().AMQP.DelayedQueue
 	declareQueueArgs := amqp.Table{
 		// Exchange where to send messages after TTL expiration.
 		"x-dead-letter-exchange": b.GetConfig().AMQP.Exchange,
 		// Routing key which use when resending expired messages.
 		"x-dead-letter-routing-key": signature.RoutingKey,
-		// Time in milliseconds
-		// after that message will expire and be sent to destination.
-		"x-message-ttl": delayMs,
-		// Time after that the queue will be deleted.
-		"x-expires": delayMs * 2,
 	}
+	messageProperties := amqp.Publishing{
+		Headers:      amqp.Table(signature.Headers),
+		ContentType:  "application/json",
+		Body:         message,
+		DeliveryMode: amqp.Persistent,
+		Expiration:   fmt.Sprint(delayMs),
+	}
+
+	if queueName == "" {
+		// It's necessary to redeclare the queue each time (to zero its TTL timer).
+		queueName = fmt.Sprintf(
+			"delay.%d.%s.%s",
+			delayMs, // delay duration in mileseconds
+			b.GetConfig().AMQP.Exchange,
+			signature.RoutingKey, // routing key
+		)
+		declareQueueArgs = amqp.Table{
+			// Exchange where to send messages after TTL expiration.
+			"x-dead-letter-exchange": b.GetConfig().AMQP.Exchange,
+			// Routing key which use when resending expired messages.
+			"x-dead-letter-routing-key": signature.RoutingKey,
+			// Time in milliseconds
+			// after that message will expire and be sent to destination.
+			"x-message-ttl": delayMs,
+			// Time after that the queue will be deleted.
+			"x-expires": delayMs * 2,
+		}
+		messageProperties = amqp.Publishing{
+			Headers:      amqp.Table(signature.Headers),
+			ContentType:  "application/json",
+			Body:         message,
+			DeliveryMode: amqp.Persistent,
+		}
+	}
+
 	conn, channel, _, _, _, err := b.Connect(
 		b.GetConfig().Broker,
 		b.GetConfig().MultipleBrokerSeparator,
@@ -397,12 +422,7 @@ func (b *Broker) delay(signature *tasks.Signature, delayMs int64) error {
 		queueName,                   // routing key
 		false,                       // mandatory
 		false,                       // immediate
-		amqp.Publishing{
-			Headers:      amqp.Table(signature.Headers),
-			ContentType:  "application/json",
-			Body:         message,
-			DeliveryMode: amqp.Persistent,
-		},
+		messageProperties,
 	); err != nil {
 		return err
 	}

@@ -3,11 +3,6 @@ package dynamodb
 import (
 	"errors"
 	"fmt"
-	"github.com/oarkflow/machinery/backends/iface"
-	"github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	tasks2 "github.com/oarkflow/machinery/tasks"
 	"math"
 	"time"
 
@@ -17,6 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 const (
@@ -54,7 +55,7 @@ func New(cnf *config.Config) iface.Backend {
 
 // InitGroup ...
 func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
-	meta := tasks2.GroupMeta{
+	meta := tasks.GroupMeta{
 		GroupUUID: groupUUID,
 		TaskUUIDs: taskUUIDs,
 		CreatedAt: time.Now().UTC(),
@@ -100,7 +101,7 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates ...
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks2.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
 	groupMeta, err := b.getGroupMeta(groupUUID)
 	if err != nil {
 		return nil, err
@@ -145,46 +146,46 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 }
 
 // SetStatePending ...
-func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
-	taskState := tasks2.NewPendingTaskState(signature)
+func (b *Backend) SetStatePending(signature *tasks.Signature) error {
+	taskState := tasks.NewPendingTaskState(signature)
 	// taskUUID is the primary key of the table, so a new task need to be created first, instead of using dynamodb.UpdateItemInput directly
 	return b.initTaskState(taskState)
 }
 
 // SetStateReceived ...
-func (b *Backend) SetStateReceived(signature *tasks2.Signature) error {
-	taskState := tasks2.NewReceivedTaskState(signature)
+func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
+	taskState := tasks.NewReceivedTaskState(signature)
 	return b.setTaskState(taskState)
 }
 
 // SetStateStarted ...
-func (b *Backend) SetStateStarted(signature *tasks2.Signature) error {
-	taskState := tasks2.NewStartedTaskState(signature)
+func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
+	taskState := tasks.NewStartedTaskState(signature)
 	return b.setTaskState(taskState)
 }
 
 // SetStateRetry ...
-func (b *Backend) SetStateRetry(signature *tasks2.Signature) error {
-	taskState := tasks2.NewRetryTaskState(signature)
+func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
+	taskState := tasks.NewRetryTaskState(signature)
 	return b.setTaskState(taskState)
 }
 
 // SetStateSuccess ...
-func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2.TaskResult) error {
-	taskState := tasks2.NewSuccessTaskState(signature, results)
+func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
+	taskState := tasks.NewSuccessTaskState(signature, results)
 	taskState.TTL = b.getExpirationTime()
 	return b.setTaskState(taskState)
 }
 
 // SetStateFailure ...
-func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error {
-	taskState := tasks2.NewFailureTaskState(signature, err)
+func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
+	taskState := tasks.NewFailureTaskState(signature, err)
 	taskState.TTL = b.getExpirationTime()
 	return b.updateToFailureStateWithError(taskState)
 }
 
 // GetState ...
-func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
+func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
 	result, err := b.client.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(b.cnf.DynamoDB.TaskStatesTable),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -202,8 +203,8 @@ func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
 
 // getStates returns the current states for the given list of tasks.
 // It uses batch fetch API. If any keys fail to fetch, it'll retry with exponential backoff until maxFetchAttempts times.
-func (b *Backend) getStates(tasksToFetch []string) ([]*tasks2.TaskState, error) {
-	fetchedTaskStates := make([]*tasks2.TaskState, 0, len(tasksToFetch))
+func (b *Backend) getStates(tasksToFetch []string) ([]*tasks.TaskState, error) {
+	fetchedTaskStates := make([]*tasks.TaskState, 0, len(tasksToFetch))
 	var unfetchedTaskIDs []string
 
 	// try until all keys are fetched or until we run out of attempts.
@@ -238,7 +239,7 @@ func (b *Backend) getStates(tasksToFetch []string) ([]*tasks2.TaskState, error) 
 // DynamoDB's BatchGetItem() can return partial results. If there are any unfetched keys, they are returned as second
 // return value so that the caller can retry those keys.
 // https://docs.aws.amazon.com/sdk-for-go/api/service/dynamodb/#DynamoDB.BatchGetItem
-func (b *Backend) batchFetchTaskStates(taskUUIDs []string) ([]*tasks2.TaskState, []string, error) {
+func (b *Backend) batchFetchTaskStates(taskUUIDs []string) ([]*tasks.TaskState, []string, error) {
 	tableName := b.cnf.DynamoDB.TaskStatesTable
 	keys := make([]map[string]*dynamodb.AttributeValue, len(taskUUIDs))
 	for i, tid := range taskUUIDs {
@@ -268,7 +269,7 @@ func (b *Backend) batchFetchTaskStates(taskUUIDs []string) ([]*tasks2.TaskState,
 		return nil, nil, fmt.Errorf("no keys returned from the table: [%s]", tableName)
 	}
 
-	states := []*tasks2.TaskState{}
+	states := []*tasks.TaskState{}
 	if err := dynamodbattribute.UnmarshalListOfMaps(fetchedKeys, &states); err != nil {
 		return nil, nil, fmt.Errorf("Got error when unmarshal map. Error: %v", err)
 	}
@@ -321,7 +322,7 @@ func (b *Backend) PurgeGroupMeta(groupUUID string) error {
 	return nil
 }
 
-func (b *Backend) getGroupMeta(groupUUID string) (*tasks2.GroupMeta, error) {
+func (b *Backend) getGroupMeta(groupUUID string) (*tasks.GroupMeta, error) {
 	result, err := b.client.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(b.cnf.DynamoDB.GroupMetasTable),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -415,7 +416,7 @@ func (b *Backend) chordTriggered(groupUUID string) error {
 	return nil
 }
 
-func (b *Backend) setTaskState(taskState *tasks2.TaskState) error {
+func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 	expAttributeNames := map[string]*string{
 		"#S": aws.String("State"),
 	}
@@ -483,7 +484,7 @@ func (b *Backend) setTaskState(taskState *tasks2.TaskState) error {
 	return nil
 }
 
-func (b *Backend) initTaskState(taskState *tasks2.TaskState) error {
+func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 	av, err := dynamodbattribute.MarshalMap(taskState)
 	input := &dynamodb.PutItemInput{
 		Item:      av,
@@ -500,7 +501,7 @@ func (b *Backend) initTaskState(taskState *tasks2.TaskState) error {
 	return nil
 }
 
-func (b *Backend) updateToFailureStateWithError(taskState *tasks2.TaskState) error {
+func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeNames: map[string]*string{
 			"#S": aws.String("State"),
@@ -540,13 +541,13 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks2.TaskState) err
 	return nil
 }
 
-func (b *Backend) unmarshalGroupMetaGetItemResult(result *dynamodb.GetItemOutput) (*tasks2.GroupMeta, error) {
+func (b *Backend) unmarshalGroupMetaGetItemResult(result *dynamodb.GetItemOutput) (*tasks.GroupMeta, error) {
 	if result == nil {
 		err := errors.New("task state is nil")
 		log.ERROR.Printf("Got error when unmarshal map. Error: %v", err)
 		return nil, err
 	}
-	item := tasks2.GroupMeta{}
+	item := tasks.GroupMeta{}
 	err := dynamodbattribute.UnmarshalMap(result.Item, &item)
 	if err != nil {
 		log.ERROR.Printf("Got error when unmarshal map. Error: %v", err)
@@ -555,13 +556,13 @@ func (b *Backend) unmarshalGroupMetaGetItemResult(result *dynamodb.GetItemOutput
 	return &item, err
 }
 
-func (b *Backend) unmarshalTaskStateGetItemResult(result *dynamodb.GetItemOutput) (*tasks2.TaskState, error) {
+func (b *Backend) unmarshalTaskStateGetItemResult(result *dynamodb.GetItemOutput) (*tasks.TaskState, error) {
 	if result == nil {
 		err := errors.New("task state is nil")
 		log.ERROR.Printf("Got error when unmarshal map. Error: %v", err)
 		return nil, err
 	}
-	state := tasks2.TaskState{}
+	state := tasks.TaskState{}
 	err := dynamodbattribute.UnmarshalMap(result.Item, &state)
 	if err != nil {
 		log.ERROR.Printf("Got error when unmarshal map. Error: %v", err)
@@ -574,15 +575,27 @@ func (b *Backend) checkRequiredTablesIfExist() error {
 	var (
 		taskTableName  = b.cnf.DynamoDB.TaskStatesTable
 		groupTableName = b.cnf.DynamoDB.GroupMetasTable
+		tableNames     []*string
+		startFromTable *string
 	)
-	result, err := b.client.ListTables(&dynamodb.ListTablesInput{})
-	if err != nil {
-		return err
+	for {
+		result, err := b.client.ListTables(&dynamodb.ListTablesInput{
+			ExclusiveStartTableName: startFromTable,
+		})
+		if err != nil {
+			return err
+		}
+		tableNames = append(tableNames, result.TableNames...)
+		if result.LastEvaluatedTableName == nil {
+			break
+		}
+		startFromTable = result.LastEvaluatedTableName
 	}
-	if !b.tableExists(taskTableName, result.TableNames) {
+
+	if !b.tableExists(taskTableName, tableNames) {
 		return errors.New("task table doesn't exist")
 	}
-	if !b.tableExists(groupTableName, result.TableNames) {
+	if !b.tableExists(groupTableName, tableNames) {
 		return errors.New("group table doesn't exist")
 	}
 	return nil
@@ -608,7 +621,7 @@ func (b *Backend) getExpirationTime() int64 {
 
 // getUnfetchedKeys returns keys that were not fetched in a batch request.
 func getUnfetchedKeys(unprocessed *dynamodb.KeysAndAttributes) ([]string, error) {
-	states := []*tasks2.TaskState{}
+	states := []*tasks.TaskState{}
 	var taskIDs []string
 	if err := dynamodbattribute.UnmarshalListOfMaps(unprocessed.Keys, &states); err != nil {
 		return nil, fmt.Errorf("Got error when unmarshal map. Error: %v", err)

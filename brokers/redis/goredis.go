@@ -5,13 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/oarkflow/machinery/brokers/errs"
-	"github.com/oarkflow/machinery/brokers/iface"
-	"github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	"github.com/oarkflow/machinery/tasks"
 	"runtime"
 	"strconv"
 	"strings"
@@ -19,6 +12,14 @@ import (
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/oarkflow/machinery/brokers/errs"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // BrokerGR represents a Redis broker
@@ -115,7 +116,7 @@ func (b *BrokerGR) StartConsuming(consumerTag string, concurrency int, taskProce
 				return
 			case <-pool:
 				task, _ := b.nextTask(getQueueGR(b.GetConfig(), taskProcessor))
-				//TODO: should this error be ignored?
+				// TODO: should this error be ignored?
 				if len(task) > 0 {
 					deliveries <- task
 				}
@@ -194,7 +195,7 @@ func (b *BrokerGR) Publish(ctx context.Context, signature *tasks.Signature) erro
 
 		if signature.ETA.After(now) {
 			score := signature.ETA.UnixNano()
-			err = b.rclient.ZAdd(context.Background(), b.redisDelayedTasksKey, &redis.Z{Score: float64(score), Member: msg}).Err()
+			err = b.rclient.ZAdd(context.Background(), b.redisDelayedTasksKey, redis.Z{Score: float64(score), Member: msg}).Err()
 			return err
 		}
 	}
@@ -350,15 +351,15 @@ func (b *BrokerGR) nextTask(queue string) (result []byte, err error) {
 // nextDelayedTask pops a value from the ZSET key using WATCH/MULTI/EXEC commands.
 func (b *BrokerGR) nextDelayedTask(key string) (result []byte, err error) {
 
-	//pipe := b.rclient.Pipeline()
+	// pipe := b.rclient.Pipeline()
 	//
-	//defer func() {
+	// defer func() {
 	//	// Return connection to normal state on error.
 	//	// https://redis.io/commands/discard
 	//	if err != nil {
 	//		pipe.Discard()
 	//	}
-	//}()
+	// }()
 
 	var (
 		items []string

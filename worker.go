@@ -3,12 +3,6 @@ package machinery
 import (
 	"errors"
 	"fmt"
-	"github.com/oarkflow/machinery/backends/amqp"
-	"github.com/oarkflow/machinery/brokers/errs"
-	"github.com/oarkflow/machinery/log"
-	"github.com/oarkflow/machinery/retry"
-	tasks2 "github.com/oarkflow/machinery/tasks"
-	"github.com/oarkflow/machinery/tracing"
 	"net/url"
 	"os"
 	"os/signal"
@@ -17,6 +11,13 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+
+	"github.com/oarkflow/machinery/backends/amqp"
+	"github.com/oarkflow/machinery/brokers/errs"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/retry"
+	"github.com/oarkflow/machinery/tasks"
+	"github.com/oarkflow/machinery/tracing"
 )
 
 // Worker represents a single worker process
@@ -26,8 +27,8 @@ type Worker struct {
 	Concurrency       int
 	Queue             string
 	errorHandler      func(err error)
-	preTaskHandler    func(*tasks2.Signature)
-	postTaskHandler   func(*tasks2.Signature)
+	preTaskHandler    func(*tasks.Signature)
+	postTaskHandler   func(*tasks.Signature)
 	preConsumeHandler func(*Worker) bool
 }
 
@@ -129,7 +130,7 @@ func (worker *Worker) Quit() {
 }
 
 // Process handles received tasks and triggers success/error callbacks
-func (worker *Worker) Process(signature *tasks2.Signature) error {
+func (worker *Worker) Process(signature *tasks.Signature) error {
 	// If the task is not registered with this worker, do not continue
 	// but only return nil as we do not want to restart the worker process
 	if !worker.server.IsTaskRegistered(signature.Name) {
@@ -147,7 +148,7 @@ func (worker *Worker) Process(signature *tasks2.Signature) error {
 	}
 
 	// Prepare task for processing
-	task, err := tasks2.NewWithSignature(taskFunc, signature)
+	task, err := tasks.NewWithSignature(taskFunc, signature)
 	// if this failed, it means the task is malformed, probably has invalid
 	// signature, go directly to task failed without checking whether to retry
 	if err != nil {
@@ -167,12 +168,12 @@ func (worker *Worker) Process(signature *tasks2.Signature) error {
 		return fmt.Errorf("Set state to 'started' for task %s returned error: %s", signature.UUID, err)
 	}
 
-	//Run handler before the task is called
+	// Run handler before the task is called
 	if worker.preTaskHandler != nil {
 		worker.preTaskHandler(signature)
 	}
 
-	//Defer run handler for the end of the task
+	// Defer run handler for the end of the task
 	if worker.postTaskHandler != nil {
 		defer worker.postTaskHandler(signature)
 	}
@@ -182,7 +183,7 @@ func (worker *Worker) Process(signature *tasks2.Signature) error {
 	if err != nil {
 		// If a tasks.ErrRetryTaskLater was returned from the task,
 		// retry the task after specified duration
-		retriableErr, ok := interface{}(err).(tasks2.ErrRetryTaskLater)
+		retriableErr, ok := interface{}(err).(tasks.ErrRetryTaskLater)
 		if ok {
 			return worker.retryTaskIn(signature, retriableErr.RetryIn())
 		}
@@ -200,7 +201,7 @@ func (worker *Worker) Process(signature *tasks2.Signature) error {
 }
 
 // retryTask decrements RetryCount counter and republishes the task to the queue
-func (worker *Worker) taskRetry(signature *tasks2.Signature) error {
+func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	// Update task state to RETRY
 	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
 		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
@@ -224,7 +225,7 @@ func (worker *Worker) taskRetry(signature *tasks2.Signature) error {
 }
 
 // taskRetryIn republishes the task to the queue with ETA of now + retryIn.Seconds()
-func (worker *Worker) retryTaskIn(signature *tasks2.Signature, retryIn time.Duration) error {
+func (worker *Worker) retryTaskIn(signature *tasks.Signature, retryIn time.Duration) error {
 	// Update task state to RETRY
 	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
 		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
@@ -243,7 +244,7 @@ func (worker *Worker) retryTaskIn(signature *tasks2.Signature, retryIn time.Dura
 
 // taskSucceeded updates the task state and triggers success callbacks or a
 // chord callback if this was the last task of a group with a chord callback
-func (worker *Worker) taskSucceeded(signature *tasks2.Signature, taskResults []*tasks2.TaskResult) error {
+func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*tasks.TaskResult) error {
 	// Update task state to SUCCESS
 	if err := worker.server.GetBackend().SetStateSuccess(signature, taskResults); err != nil {
 		return fmt.Errorf("Set state to 'success' for task %s returned error: %s", signature.UUID, err)
@@ -251,11 +252,11 @@ func (worker *Worker) taskSucceeded(signature *tasks2.Signature, taskResults []*
 
 	// Log human readable results of the processed task
 	var debugResults = "[]"
-	results, err := tasks2.ReflectTaskResults(taskResults)
+	results, err := tasks.ReflectTaskResults(taskResults)
 	if err != nil {
 		log.WARNING.Print(err)
 	} else {
-		debugResults = tasks2.HumanReadableResults(results)
+		debugResults = tasks.HumanReadableResults(results)
 	}
 	log.DEBUG.Printf("Processed task %s. Results = %s", signature.UUID, debugResults)
 
@@ -265,7 +266,7 @@ func (worker *Worker) taskSucceeded(signature *tasks2.Signature, taskResults []*
 		if signature.Immutable == false {
 			// Pass results of the task to success callbacks
 			for _, taskResult := range taskResults {
-				successTask.Args = append(successTask.Args, tasks2.Arg{
+				successTask.Args = append(successTask.Args, tasks.Arg{
 					Type:  taskResult.Type,
 					Value: taskResult.Value,
 				})
@@ -339,7 +340,7 @@ func (worker *Worker) taskSucceeded(signature *tasks2.Signature, taskResults []*
 		if signature.ChordCallback.Immutable == false {
 			// Pass results of the task to the chord callback
 			for _, taskResult := range taskState.Results {
-				signature.ChordCallback.Args = append(signature.ChordCallback.Args, tasks2.Arg{
+				signature.ChordCallback.Args = append(signature.ChordCallback.Args, tasks.Arg{
 					Type:  taskResult.Type,
 					Value: taskResult.Value,
 				})
@@ -357,7 +358,7 @@ func (worker *Worker) taskSucceeded(signature *tasks2.Signature, taskResults []*
 }
 
 // taskFailed updates the task state and triggers error callbacks
-func (worker *Worker) taskFailed(signature *tasks2.Signature, taskErr error) error {
+func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) error {
 	// Update task state to FAILURE
 	if err := worker.server.GetBackend().SetStateFailure(signature, taskErr.Error()); err != nil {
 		return fmt.Errorf("Set state to 'failure' for task %s returned error: %s", signature.UUID, err)
@@ -372,7 +373,7 @@ func (worker *Worker) taskFailed(signature *tasks2.Signature, taskErr error) err
 	// Trigger error callbacks
 	for _, errorTask := range signature.OnError {
 		// Pass error as a first argument to error callbacks
-		args := append([]tasks2.Arg{{
+		args := append([]tasks.Arg{{
 			Type:  "string",
 			Value: taskErr.Error(),
 		}}, errorTask.Args...)
@@ -400,12 +401,12 @@ func (worker *Worker) SetErrorHandler(handler func(err error)) {
 }
 
 // SetPreTaskHandler sets a custom handler func before a job is started
-func (worker *Worker) SetPreTaskHandler(handler func(*tasks2.Signature)) {
+func (worker *Worker) SetPreTaskHandler(handler func(*tasks.Signature)) {
 	worker.preTaskHandler = handler
 }
 
 // SetPostTaskHandler sets a custom handler for the end of a job
-func (worker *Worker) SetPostTaskHandler(handler func(*tasks2.Signature)) {
+func (worker *Worker) SetPostTaskHandler(handler func(*tasks.Signature)) {
 	worker.postTaskHandler = handler
 }
 

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sync"
+
 	"github.com/oarkflow/machinery/backends/iface"
 	"github.com/oarkflow/machinery/common"
 	"github.com/oarkflow/machinery/config"
-	tasks2 "github.com/oarkflow/machinery/tasks"
-	"sync"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 // ErrGroupNotFound ...
@@ -91,13 +92,13 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks2.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
 	taskUUIDs, ok := b.groups[groupUUID]
 	if !ok {
 		return nil, NewErrGroupNotFound(groupUUID)
 	}
 
-	ret := make([]*tasks2.TaskState, 0, groupTaskCount)
+	ret := make([]*tasks.TaskState, 0, groupTaskCount)
 	for _, taskUUID := range taskUUIDs {
 		t, err := b.GetState(taskUUID)
 		if err != nil {
@@ -119,49 +120,49 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 }
 
 // SetStatePending updates task state to PENDING
-func (b *Backend) SetStatePending(signature *tasks2.Signature) error {
-	state := tasks2.NewPendingTaskState(signature)
+func (b *Backend) SetStatePending(signature *tasks.Signature) error {
+	state := tasks.NewPendingTaskState(signature)
 	return b.updateState(state)
 }
 
 // SetStateReceived updates task state to RECEIVED
-func (b *Backend) SetStateReceived(signature *tasks2.Signature) error {
-	state := tasks2.NewReceivedTaskState(signature)
+func (b *Backend) SetStateReceived(signature *tasks.Signature) error {
+	state := tasks.NewReceivedTaskState(signature)
 	return b.updateState(state)
 }
 
 // SetStateStarted updates task state to STARTED
-func (b *Backend) SetStateStarted(signature *tasks2.Signature) error {
-	state := tasks2.NewStartedTaskState(signature)
+func (b *Backend) SetStateStarted(signature *tasks.Signature) error {
+	state := tasks.NewStartedTaskState(signature)
 	return b.updateState(state)
 }
 
 // SetStateRetry updates task state to RETRY
-func (b *Backend) SetStateRetry(signature *tasks2.Signature) error {
-	state := tasks2.NewRetryTaskState(signature)
+func (b *Backend) SetStateRetry(signature *tasks.Signature) error {
+	state := tasks.NewRetryTaskState(signature)
 	return b.updateState(state)
 }
 
 // SetStateSuccess updates task state to SUCCESS
-func (b *Backend) SetStateSuccess(signature *tasks2.Signature, results []*tasks2.TaskResult) error {
-	state := tasks2.NewSuccessTaskState(signature, results)
+func (b *Backend) SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error {
+	state := tasks.NewSuccessTaskState(signature, results)
 	return b.updateState(state)
 }
 
 // SetStateFailure updates task state to FAILURE
-func (b *Backend) SetStateFailure(signature *tasks2.Signature, err string) error {
-	state := tasks2.NewFailureTaskState(signature, err)
+func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error {
+	state := tasks.NewFailureTaskState(signature, err)
 	return b.updateState(state)
 }
 
 // GetState returns the latest task state
-func (b *Backend) GetState(taskUUID string) (*tasks2.TaskState, error) {
+func (b *Backend) GetState(taskUUID string) (*tasks.TaskState, error) {
 	tasktStateBytes, ok := b.tasks[taskUUID]
 	if !ok {
 		return nil, NewErrTasknotFound(taskUUID)
 	}
 
-	state := new(tasks2.TaskState)
+	state := new(tasks.TaskState)
 	decoder := json.NewDecoder(bytes.NewReader(tasktStateBytes))
 	decoder.UseNumber()
 	if err := decoder.Decode(state); err != nil {
@@ -193,7 +194,7 @@ func (b *Backend) PurgeGroupMeta(groupUUID string) error {
 	return nil
 }
 
-func (b *Backend) updateState(s *tasks2.TaskState) error {
+func (b *Backend) updateState(s *tasks.TaskState) error {
 	// simulate the behavior of json marshal/unmarshal
 	b.stateMutex.Lock()
 	defer b.stateMutex.Unlock()

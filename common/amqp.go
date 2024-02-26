@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/oarkflow/amqp/amqp091"
 )
 
 // AMQPConnector ...

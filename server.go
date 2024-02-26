@@ -4,22 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	backendsiface "github.com/oarkflow/machinery/backends/iface"
-	"github.com/oarkflow/machinery/backends/result"
-	brokersiface "github.com/oarkflow/machinery/brokers/iface"
-	"github.com/oarkflow/machinery/config"
-	lockiface "github.com/oarkflow/machinery/locks/iface"
-	"github.com/oarkflow/machinery/log"
-	tasks2 "github.com/oarkflow/machinery/tasks"
-	"github.com/oarkflow/machinery/tracing"
-	"github.com/oarkflow/machinery/utils"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/oarkflow/machinery/backends/result"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
+	"github.com/oarkflow/machinery/tracing"
+	"github.com/oarkflow/machinery/utils"
+
+	"github.com/opentracing/opentracing-go"
+
+	backendsiface "github.com/oarkflow/machinery/backends/iface"
+	brokersiface "github.com/oarkflow/machinery/brokers/iface"
+	lockiface "github.com/oarkflow/machinery/locks/iface"
 )
 
 // Server is the main Machinery object and stores all configuration
@@ -31,7 +33,7 @@ type Server struct {
 	backend           backendsiface.Backend
 	lock              lockiface.Lock
 	scheduler         *cron.Cron
-	prePublishHandler func(*tasks2.Signature)
+	prePublishHandler func(*tasks.Signature)
 }
 
 // NewServer creates Server instance
@@ -102,14 +104,14 @@ func (server *Server) SetConfig(cnf *config.Config) {
 }
 
 // SetPreTaskHandler Sets pre publish handler
-func (server *Server) SetPreTaskHandler(handler func(*tasks2.Signature)) {
+func (server *Server) SetPreTaskHandler(handler func(*tasks.Signature)) {
 	server.prePublishHandler = handler
 }
 
 // RegisterTasks registers all tasks at once
 func (server *Server) RegisterTasks(namedTaskFuncs map[string]interface{}) error {
 	for _, task := range namedTaskFuncs {
-		if err := tasks2.ValidateTask(task); err != nil {
+		if err := tasks.ValidateTask(task); err != nil {
 			return err
 		}
 	}
@@ -122,7 +124,7 @@ func (server *Server) RegisterTasks(namedTaskFuncs map[string]interface{}) error
 
 // RegisterTask registers a single task
 func (server *Server) RegisterTask(name string, taskFunc interface{}) error {
-	if err := tasks2.ValidateTask(taskFunc); err != nil {
+	if err := tasks.ValidateTask(taskFunc); err != nil {
 		return err
 	}
 	server.registeredTasks.Store(name, taskFunc)
@@ -146,7 +148,7 @@ func (server *Server) GetRegisteredTask(name string) (interface{}, error) {
 }
 
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
-func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks2.Signature) (*result.AsyncResult, error) {
+func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendTask", tracing.ProducerOption(), tracing.MachineryTag)
 	defer span.Finish()
 
@@ -181,12 +183,12 @@ func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks2
 }
 
 // SendTask publishes a task to the default queue
-func (server *Server) SendTask(signature *tasks2.Signature) (*result.AsyncResult, error) {
+func (server *Server) SendTask(signature *tasks.Signature) (*result.AsyncResult, error) {
 	return server.SendTaskWithContext(context.Background(), signature)
 }
 
 // SendChainWithContext will inject the trace context in all the signature headers before publishing it
-func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks2.Chain) (*result.ChainAsyncResult, error) {
+func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendChain", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowChainTag)
 	defer span.Finish()
 
@@ -196,7 +198,7 @@ func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks2.Ch
 }
 
 // SendChain triggers a chain of tasks
-func (server *Server) SendChain(chain *tasks2.Chain) (*result.ChainAsyncResult, error) {
+func (server *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	_, err := server.SendTask(chain.Tasks[0])
 	if err != nil {
 		return nil, err
@@ -206,7 +208,7 @@ func (server *Server) SendChain(chain *tasks2.Chain) (*result.ChainAsyncResult, 
 }
 
 // SendGroupWithContext will inject the trace context in all the signature headers before publishing it
-func (server *Server) SendGroupWithContext(ctx context.Context, group *tasks2.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
+func (server *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendGroup", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowGroupTag)
 	defer span.Finish()
 
@@ -247,7 +249,7 @@ func (server *Server) SendGroupWithContext(ctx context.Context, group *tasks2.Gr
 			<-pool
 		}
 
-		go func(s *tasks2.Signature, index int) {
+		go func(s *tasks.Signature, index int) {
 			defer wg.Done()
 
 			// Publish task
@@ -282,12 +284,12 @@ func (server *Server) SendGroupWithContext(ctx context.Context, group *tasks2.Gr
 }
 
 // SendGroup triggers a group of parallel tasks
-func (server *Server) SendGroup(group *tasks2.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
+func (server *Server) SendGroup(group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
 	return server.SendGroupWithContext(context.Background(), group, sendConcurrency)
 }
 
 // SendChordWithContext will inject the trace context in all the signature headers before publishing it
-func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks2.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
+func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendChord", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowChordTag)
 	defer span.Finish()
 
@@ -306,7 +308,7 @@ func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks2.Ch
 }
 
 // SendChord triggers a group of parallel tasks with a callback
-func (server *Server) SendChord(chord *tasks2.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
+func (server *Server) SendChord(chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
 	return server.SendChordWithContext(context.Background(), chord, sendConcurrency)
 }
 
@@ -322,22 +324,22 @@ func (server *Server) GetRegisteredTaskNames() []string {
 }
 
 // RegisterPeriodicTask register a periodic task which will be triggered periodically
-func (server *Server) RegisterPeriodicTask(spec, name string, signature *tasks2.Signature) error {
-	//check spec
+func (server *Server) RegisterPeriodicTask(spec, name string, signature *tasks.Signature) error {
+	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
 		return err
 	}
 
 	f := func() {
-		//get lock
+		// get lock
 		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
 		if err != nil {
 			return
 		}
 
-		//send task
-		_, err = server.SendTask(tasks2.CopySignature(signature))
+		// send task
+		_, err = server.SendTask(tasks.CopySignature(signature))
 		if err != nil {
 			log.ERROR.Printf("periodic task failed. task name is: %s. error is %s", name, err.Error())
 		}
@@ -348,8 +350,8 @@ func (server *Server) RegisterPeriodicTask(spec, name string, signature *tasks2.
 }
 
 // RegisterPeriodicChain register a periodic chain which will be triggered periodically
-func (server *Server) RegisterPeriodicChain(spec, name string, signatures ...*tasks2.Signature) error {
-	//check spec
+func (server *Server) RegisterPeriodicChain(spec, name string, signatures ...*tasks.Signature) error {
+	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
 		return err
@@ -357,15 +359,15 @@ func (server *Server) RegisterPeriodicChain(spec, name string, signatures ...*ta
 
 	f := func() {
 		// new chain
-		chain, _ := tasks2.NewChain(tasks2.CopySignatures(signatures...)...)
+		chain, _ := tasks.NewChain(tasks.CopySignatures(signatures...)...)
 
-		//get lock
+		// get lock
 		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
 		if err != nil {
 			return
 		}
 
-		//send task
+		// send task
 		_, err = server.SendChain(chain)
 		if err != nil {
 			log.ERROR.Printf("periodic task failed. task name is: %s. error is %s", name, err.Error())
@@ -377,8 +379,8 @@ func (server *Server) RegisterPeriodicChain(spec, name string, signatures ...*ta
 }
 
 // RegisterPeriodicGroup register a periodic group which will be triggered periodically
-func (server *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency int, signatures ...*tasks2.Signature) error {
-	//check spec
+func (server *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency int, signatures ...*tasks.Signature) error {
+	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
 		return err
@@ -386,15 +388,15 @@ func (server *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency i
 
 	f := func() {
 		// new group
-		group, _ := tasks2.NewGroup(tasks2.CopySignatures(signatures...)...)
+		group, _ := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
 
-		//get lock
+		// get lock
 		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
 		if err != nil {
 			return
 		}
 
-		//send task
+		// send task
 		_, err = server.SendGroup(group, sendConcurrency)
 		if err != nil {
 			log.ERROR.Printf("periodic task failed. task name is: %s. error is %s", name, err.Error())
@@ -406,8 +408,8 @@ func (server *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency i
 }
 
 // RegisterPeriodicChord register a periodic chord which will be triggered periodically
-func (server *Server) RegisterPeriodicChord(spec, name string, sendConcurrency int, callback *tasks2.Signature, signatures ...*tasks2.Signature) error {
-	//check spec
+func (server *Server) RegisterPeriodicChord(spec, name string, sendConcurrency int, callback *tasks.Signature, signatures ...*tasks.Signature) error {
+	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
 		return err
@@ -415,16 +417,16 @@ func (server *Server) RegisterPeriodicChord(spec, name string, sendConcurrency i
 
 	f := func() {
 		// new chord
-		group, _ := tasks2.NewGroup(tasks2.CopySignatures(signatures...)...)
-		chord, _ := tasks2.NewChord(group, tasks2.CopySignature(callback))
+		group, _ := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
+		chord, _ := tasks.NewChord(group, tasks.CopySignature(callback))
 
-		//get lock
+		// get lock
 		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
 		if err != nil {
 			return
 		}
 
-		//send task
+		// send task
 		_, err = server.SendChord(chord, sendConcurrency)
 		if err != nil {
 			log.ERROR.Printf("periodic task failed. task name is: %s. error is %s", name, err.Error())

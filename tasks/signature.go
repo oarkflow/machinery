@@ -2,8 +2,9 @@ package tasks
 
 import (
 	"fmt"
-	"github.com/oarkflow/machinery/utils"
 	"time"
+
+	"github.com/oarkflow/machinery/utils"
 
 	"github.com/google/uuid"
 )
@@ -59,9 +60,9 @@ type Signature struct {
 	OnSuccess      []*Signature
 	OnError        []*Signature
 	ChordCallback  *Signature
-	//MessageGroupId for Broker, e.g. SQS
+	// MessageGroupId for Broker, e.g. SQS
 	BrokerMessageGroupId string
-	//ReceiptHandle of SQS Message
+	// ReceiptHandle of SQS Message
 	SQSReceiptHandle string
 	// StopTaskDeletionOnError used with sqs when we want to send failed messages to dlq,
 	// and don't want machinery to delete from source queue

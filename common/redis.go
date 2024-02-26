@@ -2,10 +2,11 @@ package common
 
 import (
 	"crypto/tls"
-	"github.com/oarkflow/machinery/config"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+
+	"github.com/oarkflow/machinery/config"
 )
 
 var (

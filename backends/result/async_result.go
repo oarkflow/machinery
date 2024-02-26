@@ -2,10 +2,11 @@ package result
 
 import (
 	"errors"
-	"github.com/oarkflow/machinery/backends/iface"
-	tasks2 "github.com/oarkflow/machinery/tasks"
 	"reflect"
 	"time"
+
+	"github.com/oarkflow/machinery/backends/iface"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 var (
@@ -17,8 +18,8 @@ var (
 
 // AsyncResult represents a task result
 type AsyncResult struct {
-	Signature *tasks2.Signature
-	taskState *tasks2.TaskState
+	Signature *tasks.Signature
+	taskState *tasks.TaskState
 	backend   iface.Backend
 }
 
@@ -36,16 +37,16 @@ type ChainAsyncResult struct {
 }
 
 // NewAsyncResult creates AsyncResult instance
-func NewAsyncResult(signature *tasks2.Signature, backend iface.Backend) *AsyncResult {
+func NewAsyncResult(signature *tasks.Signature, backend iface.Backend) *AsyncResult {
 	return &AsyncResult{
 		Signature: signature,
-		taskState: new(tasks2.TaskState),
+		taskState: new(tasks.TaskState),
 		backend:   backend,
 	}
 }
 
 // NewChordAsyncResult creates ChordAsyncResult instance
-func NewChordAsyncResult(groupTasks []*tasks2.Signature, chordCallback *tasks2.Signature, backend iface.Backend) *ChordAsyncResult {
+func NewChordAsyncResult(groupTasks []*tasks.Signature, chordCallback *tasks.Signature, backend iface.Backend) *ChordAsyncResult {
 	asyncResults := make([]*AsyncResult, len(groupTasks))
 	for i, task := range groupTasks {
 		asyncResults[i] = NewAsyncResult(task, backend)
@@ -58,7 +59,7 @@ func NewChordAsyncResult(groupTasks []*tasks2.Signature, chordCallback *tasks2.S
 }
 
 // NewChainAsyncResult creates ChainAsyncResult instance
-func NewChainAsyncResult(tasks []*tasks2.Signature, backend iface.Backend) *ChainAsyncResult {
+func NewChainAsyncResult(tasks []*tasks.Signature, backend iface.Backend) *ChainAsyncResult {
 	asyncResults := make([]*AsyncResult, len(tasks))
 	for i, task := range tasks {
 		asyncResults[i] = NewAsyncResult(task, backend)
@@ -87,7 +88,7 @@ func (asyncResult *AsyncResult) Touch() ([]reflect.Value, error) {
 	}
 
 	if asyncResult.taskState.IsSuccess() {
-		return tasks2.ReflectTaskResults(asyncResult.taskState.Results)
+		return tasks.ReflectTaskResults(asyncResult.taskState.Results)
 	}
 
 	return nil, nil
@@ -127,7 +128,7 @@ func (asyncResult *AsyncResult) GetWithTimeout(timeoutDuration, sleepDuration ti
 }
 
 // GetState returns latest task state
-func (asyncResult *AsyncResult) GetState() *tasks2.TaskState {
+func (asyncResult *AsyncResult) GetState() *tasks.TaskState {
 	if asyncResult.taskState.IsCompleted() {
 		return asyncResult.taskState
 	}

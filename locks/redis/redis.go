@@ -2,11 +2,13 @@ package redis
 
 import (
 	"errors"
-	"github.com/go-redis/redis/v8"
-	"github.com/oarkflow/machinery/config"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+
+	"github.com/oarkflow/machinery/config"
 )
 
 var (
@@ -51,7 +53,7 @@ func (r Lock) LockWithRetries(key string, unixTsToExpireNs int64) error {
 	for i := 0; i <= r.retries; i++ {
 		err := r.Lock(key, unixTsToExpireNs)
 		if err == nil {
-			//成功拿到锁，返回
+			// 成功拿到锁，返回
 			return nil
 		}
 

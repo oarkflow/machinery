@@ -5,12 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/oarkflow/machinery/brokers/errs"
-	"github.com/oarkflow/machinery/brokers/iface"
-	common2 "github.com/oarkflow/machinery/common"
-	"github.com/oarkflow/machinery/config"
-	"github.com/oarkflow/machinery/log"
-	"github.com/oarkflow/machinery/tasks"
 	"math"
 	"runtime"
 	"sync"
@@ -19,14 +13,21 @@ import (
 	"github.com/go-redsync/redsync/v4"
 	redsyncredis "github.com/go-redsync/redsync/v4/redis/redigo"
 	"github.com/gomodule/redigo/redis"
+
+	"github.com/oarkflow/machinery/brokers/errs"
+	"github.com/oarkflow/machinery/brokers/iface"
+	"github.com/oarkflow/machinery/common"
+	"github.com/oarkflow/machinery/config"
+	"github.com/oarkflow/machinery/log"
+	"github.com/oarkflow/machinery/tasks"
 )
 
 const defaultRedisDelayedTasksKey = "delayed_tasks"
 
 // Broker represents a Redis broker
 type Broker struct {
-	common2.Broker
-	common2.RedisConnector
+	common.Broker
+	common.RedisConnector
 	host         string
 	password     string
 	db           int
@@ -43,7 +44,7 @@ type Broker struct {
 
 // New creates new Broker instance
 func New(cnf *config.Config, host, password, socketPath string, db int) iface.Broker {
-	b := &Broker{Broker: common2.NewBroker(cnf)}
+	b := &Broker{Broker: common.NewBroker(cnf)}
 	b.host = host
 	b.db = db
 	b.password = password
@@ -119,7 +120,7 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 
 				if taskProcessor.PreConsumeHandler() {
 					task, _ := b.nextTask(getQueue(b.GetConfig(), taskProcessor))
-					//TODO: should this error be ignored?
+					// TODO: should this error be ignored?
 					if len(task) > 0 {
 						deliveries <- task
 					}
